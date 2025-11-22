@@ -1,0 +1,200 @@
+You are building a modern, responsive web application called CalmlyAI – a communication assistant that helps users de-escalate relationship conflicts by rewriting messages in a calm, clear, and respectful tone.
+📱 SCOPE: Frontend & UX/UI Only
+
+NO complex backend – keep all logic client-side where possible
+NO database integration – use React state or simple mock data for demonstration
+Focus exclusively on beautiful, responsive UI/UX design and smooth user interactions
+Language: English (all text, labels, and UI copy)
+Device support: Fully responsive (mobile-first, tablet, desktop)
+
+
+🎨 DESIGN SYSTEM
+Style Guide:
+
+Modern, minimalist aesthetic with smooth transitions
+Light color palette (soft whites, light grays, subtle blues/purples)
+Rounded corners (12-16px border-radius)
+Glassmorphism effects allowed (subtle frosted glass backgrounds)
+Subtle shadows only – no heavy drop shadows
+Friendly, accessible typography (clear hierarchy)
+Minimalistic, intuitive icons
+Smooth animations and hover states
+
+Color Palette (suggested):
+
+Primary: Soft blue/lavender (#6366F1 or #7C3AED)
+Secondary: Light gray backgrounds (#F8FAFC, #F1F5F9)
+Accent: Calming green (#10B981)
+Text: Dark gray (#1F2937)
+Borders: Light gray (#E5E7EB)
+
+
+📄 4 MANDATORY SCREENS WITH NAVIGATION
+Screen 1: Home Page (Landing)
+
+Clean hero section with app logo/name "CalmlyAI"
+Tagline: "De-escalate conflicts. Communicate with clarity."
+Short value proposition: "Improve communication, reduce misunderstandings, and manage group tasks seamlessly."
+Visually appealing hero image or abstract illustration (use simple SVG or placeholder with gradient)
+One prominent CTA button: "Explore Features" → Links to Features Page
+Navigation bar (simple: Logo + nav links to all 4 pages)
+
+Screen 2: Features Page
+Show the three core MVP communication tools with clear visual separation:
+Feature 1: Safe Send Check
+
+Card/section with icon
+Description: "Paste your message and get an instant rewrite in a calm, respectful tone. See risky sentences highlighted with better alternatives."
+Interactive demo box:
+
+Input field for user to paste a "rough" message (with placeholder example like: "You ALWAYS forget to do your tasks! This is so frustrating!")
+"Check Message" button
+Output section showing:
+
+Risky phrases highlighted (in red/orange)
+Improved rewrite (in green/calm color)
+Side-by-side "Before vs After" comparison
+
+
+
+
+
+Feature 2: Calm Rewrite
+
+Card/section with icon
+Description: "Transform stressful, conflict-related messages into balanced, emotionally neutral communication."
+Interactive demo box:
+
+Input field for stressful message
+"Rewrite" button
+Output showing before/after with visual distinction
+
+
+
+Feature 3: Social Skills Coach (AI Chatbot)
+
+Card/section with icon
+Description: "Get real-time advice on social skills, conflict management, and communication tips."
+Mini chatbot interface (small mockup):
+
+Chat bubble showing coach greeting: "Hi! I'm here to help you communicate better. What would you like advice on?"
+Input field to ask questions
+Example responses shown (2-3 sample conversations)
+Collapsible/expandable design
+
+
+
+CTA Button at bottom: "Manage Your Groups" → Links to Task Groups Page
+
+Navigation bar visible
+
+Screen 3: Task Groups Page
+Showcase group-based task management:
+Group Creation/Selection:
+
+Display 2-3 example groups (cards):
+
+"Roommates" (3 members)
+"Family" (5 members)
+"Work Team" (8 members)
+
+
+"Create New Group" button (+ icon)
+
+Inside a Group (click to expand or show one as default):
+
+Group header with name, member count, and description
+Shared Tasks List:
+
+Sample tasks with checkboxes:
+
+✓ Clean kitchen (Completed by Sarah)
+☐ Pay rent (Due tomorrow – John)
+☐ Buy groceries (Due in 2 days – Team)
+
+
+Status badges (Completed, Pending, Overdue)
+
+
+Messaging Helper Section:
+
+Display system-suggested gentle reminder messages for overdue tasks
+Example: "Hey John, just a friendly reminder about the rent payment due tomorrow. Let me know if you need anything!"
+"Send Message" button (simulated interaction)
+
+
+Activity Feed (mini):
+
+"Sarah completed 'Clean kitchen' 2 hours ago"
+"Task 'Buy groceries' assigned to Team"
+Timeline-style display
+
+
+Premium Indicator (for future monetization):
+
+Small badge showing "Basic Group" or "Premium Group" (visual distinction)
+
+
+
+CTA Button at bottom: "Get in Touch" → Links to Contact Us Page
+
+Navigation bar visible
+
+Screen 4: Contact Us Page
+
+Simple, clean support form
+Fields:
+
+Full Name (input)
+Email Address (input)
+Message (textarea – larger, for detailed feedback)
+Category dropdown (optional): Bug Report / Feature Request / General Inquiry
+
+
+One primary CTA button: "Send Message" (with success feedback on submit)
+Simple validation (name, email required)
+Success message shown after submit (toast notification or modal)
+Footer with social links (LinkedIn, Twitter, etc. – optional)
+Navigation bar visible
+
+
+🔧 TECHNICAL REQUIREMENTS
+Tech Stack:
+
+React with TypeScript
+Tailwind CSS (core utilities only – no custom plugins)
+React Router for page navigation
+State management: React hooks (useState, useContext if needed)
+Lucide React for icons
+NO backend API calls – all interactions are client-side simulations
+NO database – mock data only (stored in React state or constants)
+
+Key Features to Implement:
+
+Smooth page transitions with navigation
+Interactive demo boxes that show before/after message rewrites (use mock AI responses)
+Responsive layout that works on mobile (375px), tablet (768px), and desktop (1440px)
+Hover effects & animations for buttons and cards
+Form validation on Contact Us page
+Success feedback (toast or modal after form submit)
+Collapsible/expandable sections for features and groups
+Visual hierarchy with clear CTAs on every page
+
+
+✨ INTERACTION EXAMPLES
+Safe Send Check Demo:
+
+User types: "You never listen to me!"
+Click "Check Message"
+App shows: Risky phrase highlighted + Better version: "I feel like my concerns aren't being heard. Can we talk about this?"
+
+Task Group Interaction:
+
+Click on a group card → expands to show tasks, activity, and suggested messages
+Check a task ✓ → updates UI with completion animation
+Click "Send Message" → shows simulated message sent (toast: "Message sent!")
+
+Contact Form:
+
+Fill form → Click "Send Message"
+Success toast: "Thank you! We'll get back to you soon."
