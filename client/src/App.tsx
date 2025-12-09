@@ -9,11 +9,13 @@ import Features from "@/pages/Features";
 import TaskGroups from "@/pages/TaskGroups";
 import Contact from "@/pages/Contact";
 import NotFound from "@/pages/not-found";
+import ScrollToTop from "@/components/ScrollToTop"; // ← AJOUT
 
 function Router() {
   return (
     <>
       <Navigation />
+      <ScrollToTop />  {/* ← AJOUT ICI */}
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/features" component={Features} />

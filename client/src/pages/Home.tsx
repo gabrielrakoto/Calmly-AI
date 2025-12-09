@@ -1,132 +1,182 @@
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Shield, Users } from "lucide-react";
+import { MessageSquare, Shield, ArrowRight } from "lucide-react";
+import { useLocation } from "wouter";
 
-export default function Home() {
+export default function HeroSection() {
+  const [, setLocation] = useLocation();
+
+  // 🔹 Navigation stable, scroll en haut après navigation
+  const handleNavigate = (path: string) => {
+    setLocation(path);
+
+    // attendre que la nouvelle page soit chargée
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 50); // 50ms suffit généralement
+  };
+
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-success/5 py-20 sm:py-32">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden py-20 sm:py-32 lg:py-40">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-success/5"></div>
+
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-success/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/3 w-72 h-72 bg-purple-200/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
+
+            {/* Left content */}
+            <div className="space-y-8 animate-fade-in">
               <div className="space-y-4">
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight" data-testid="text-hero-title">
-                  Proactive conflict resolution with AI
+                <div className="inline-block">
+                  <span className="px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
+                    ✨ AI-Powered Communication
+                  </span>
+                </div>
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-tight">
+                  <span className="bg-gradient-to-r from-primary via-purple-500 to-success bg-clip-text text-transparent">
+                    De-escalate
+                  </span>
+                  <br />
+                  <span>conflicts with</span>
+                  <br />
+                  <span className="bg-gradient-to-r from-success to-primary bg-clip-text text-transparent">
+                    clarity
+                  </span>
                 </h1>
-                <p className="text-xl text-muted-foreground max-w-2xl" data-testid="text-hero-subtitle">
-                  Simplify and de-escalate conflict in your relationships with the help of intelligent mediation
+                <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed">
+                  Transform heated moments into meaningful conversations. CalmlyAI helps you communicate better, resolve conflicts faster, and strengthen relationships.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/features" data-testid="link-explore-features">
-                  <Button size="lg" className="w-full sm:w-auto" data-testid="button-get-early-access">
-                    Get early access
-                  </Button>
-                </Link>
+
+              {/* Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto group" 
+                  onClick={() => handleNavigate("/features")}
+                >
+                  Get early access
+                  <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </Button>
+
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="w-full sm:w-auto" 
+                  onClick={() => handleNavigate("/features")}
+                >
+                  Learn more
+                </Button>
+              </div>
+
+              <div className="flex gap-8 pt-8 border-t border-border">
+                <div>
+                  <div className="text-2xl font-bold">AI-Powered</div>
+                  <p className="text-sm text-muted-foreground">Real-time analysis</p>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">Multilingual</div>
+                  <p className="text-sm text-muted-foreground">Any language</p>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">24/7</div>
+                  <p className="text-sm text-muted-foreground">Always available</p>
+                </div>
               </div>
             </div>
 
-            {/* Illustration */}
-            <div className="relative lg:h-[500px] flex items-center justify-center">
+            {/* Right - Interactive Card */}
+            <div className="relative lg:h-[600px] flex items-center justify-center animate-float">
               <div className="relative w-full max-w-md">
-                <Card className="p-8 backdrop-blur-sm bg-card/50 border-card-border" data-testid="card-hero-illustration">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-success/20 rounded-2xl blur-2xl"></div>
+
+                <Card className="relative p-8 backdrop-blur-xl bg-card/80 border border-primary/20 shadow-2xl hover:shadow-primary/20 transition-all duration-500">
                   <div className="space-y-6">
-                    <div className="flex items-start gap-4" data-testid="container-message-example-1">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                        <MessageSquare className="h-5 w-5 text-primary" />
+
+                    {/* Message 1 */}
+                    <div className="flex items-start gap-4 animate-slide-in-left" style={{ animationDelay: "0.2s" }}>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/20 border border-destructive/30">
+                        <MessageSquare className="h-5 w-5 text-destructive" />
                       </div>
                       <div className="space-y-2 flex-1">
-                        <div className="h-3 bg-muted rounded w-3/4" data-testid="placeholder-text-1"></div>
-                        <div className="h-3 bg-muted rounded w-full" data-testid="placeholder-text-2"></div>
-                        <div className="h-3 bg-muted rounded w-2/3" data-testid="placeholder-text-3"></div>
+                        <div className="bg-destructive/10 rounded-xl p-4 border border-destructive/20">
+                          <p className="text-sm font-medium text-foreground">
+                            You never listen! Stop being so careless!
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground ml-2">Angry tone detected ⚠️</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-4 pl-14" data-testid="container-message-example-2">
-                      <div className="space-y-2 flex-1">
-                        <div className="h-3 bg-primary/20 rounded w-full" data-testid="placeholder-response-1"></div>
-                        <div className="h-3 bg-primary/20 rounded w-5/6" data-testid="placeholder-response-2"></div>
+
+                    {/* Transform label */}
+                    <div className="flex justify-center animate-bounce" style={{ animationDelay: "0.4s" }}>
+                      <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+                        <p className="text-xs font-medium text-primary">CalmlyAI Transform</p>
                       </div>
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success/10">
+                    </div>
+
+                    {/* Message 2 */}
+                    <div className="flex items-start gap-4 justify-end animate-slide-in-right" style={{ animationDelay: "0.6s" }}>
+                      <div className="space-y-2 flex-1">
+                        <div className="bg-success/10 rounded-xl p-4 border border-success/30 ml-auto max-w-xs">
+                          <p className="text-sm font-medium text-foreground">
+                            I feel like my concerns aren't being heard. Can we talk about this?
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mr-2">Calm & respectful ✓</p>
+                      </div>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success/20 border border-success/30">
                         <Shield className="h-5 w-5 text-success" />
                       </div>
                     </div>
+
                   </div>
                 </Card>
-                <div className="absolute -top-6 -right-6 w-24 h-24 bg-primary/10 rounded-full blur-3xl"></div>
-                <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-success/10 rounded-full blur-3xl"></div>
+
+                <div className="absolute -top-6 -right-6 w-24 h-24 bg-primary/30 rounded-full blur-3xl opacity-40 animate-pulse"></div>
+                <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-success/30 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDelay: "0.5s" }}></div>
               </div>
             </div>
+
           </div>
         </div>
       </section>
 
-      {/* Mission & Description Section */}
-      <section className="py-20 bg-card/30" data-testid="section-mission-description">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
-            <Card className="p-8 space-y-4" data-testid="card-mission">
-              <h2 className="text-2xl font-bold" data-testid="text-mission-title">Mission:</h2>
-              <p className="text-muted-foreground leading-relaxed" data-testid="text-mission-description">
-                To help everyone communicate better and preserve peace in their relationships
-              </p>
-            </Card>
-            <Card className="p-8 space-y-4" data-testid="card-description">
-              <h2 className="text-2xl font-bold" data-testid="text-description-title">Description:</h2>
-              <p className="text-muted-foreground leading-relaxed" data-testid="text-description-content">
-                CalmlyAI anticipates disagreements and guides everyone towards clearer, more balanced and humane communication.
-              </p>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Preview */}
-      <section className="py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-3xl sm:text-4xl font-bold">Key Features</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Powerful tools to improve your communication
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <Card className="p-6 hover-elevate transition-all space-y-4" data-testid="card-feature-preview-safe-send">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Safe Send Check</h3>
-              <p className="text-muted-foreground">
-                Get instant feedback on your messages with risky phrases highlighted and calm alternatives suggested.
-              </p>
-            </Card>
-            <Card className="p-6 hover-elevate transition-all space-y-4" data-testid="card-feature-preview-calm-rewrite">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
-                <MessageSquare className="h-6 w-6 text-success" />
-              </div>
-              <h3 className="text-xl font-semibold">Calm Rewrite</h3>
-              <p className="text-muted-foreground">
-                Transform stressful messages into balanced, emotionally neutral communication instantly.
-              </p>
-            </Card>
-            <Card className="p-6 hover-elevate transition-all space-y-4" data-testid="card-feature-preview-task-groups">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Task Groups</h3>
-              <p className="text-muted-foreground">
-                Manage shared tasks with gentle reminders and activity tracking for better collaboration.
-              </p>
-            </Card>
-          </div>
-          <div className="text-center mt-12">
-            <Link href="/features" data-testid="link-explore-all-features">
-              <Button size="lg" data-testid="button-explore-all-features">Explore All Features</Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Animations */}
+      <style>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slide-in-left {
+          from { opacity: 0; transform: translateX(-30px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slide-in-right {
+          from { opacity: 0; transform: translateX(30px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .animate-blob { animation: blob 7s infinite; }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-fade-in { animation: fade-in 0.8s ease-out; }
+        .animate-slide-in-left { animation: slide-in-left 0.6s ease-out forwards; }
+        .animate-slide-in-right { animation: slide-in-right 0.6s ease-out forwards; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
+      `}</style>
     </div>
   );
 }
