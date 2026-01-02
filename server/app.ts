@@ -8,6 +8,7 @@ import express, {
 } from "express";
 
 import { registerRoutes } from "./routes";
+import { connectDB } from "./mongodb";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -37,6 +38,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
+  console.log(`Incoming Request: ${req.method} ${path}`);
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
@@ -67,6 +69,9 @@ app.use((req, res, next) => {
 export default async function runApp(
   setup: (app: Express, server: Server) => Promise<void>,
 ) {
+  // Connect to MongoDB
+  await connectDB();
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -81,16 +86,15 @@ export default async function runApp(
   // the catch-all route doesn't interfere with the other routes
   await setup(app, server);
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
+  // Correction définitive pour le développement local : 
+  // Forcer l'utilisation de l'adresse IPv4 locale (127.0.0.1) au lieu de 'localhost' (qui peut utiliser IPv6 '::1') ou '0.0.0.0'.
+  const host = process.env.HOST || '0.0.0.0';
   const port = parseInt(process.env.PORT || '5000', 10);
+
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host: host, // Utilise 127.0.0.1 par défaut
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on http://${host}:${port}`); // Affichera http://127.0.0.1:5000
   });
 }

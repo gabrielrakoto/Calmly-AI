@@ -8,6 +8,9 @@ import { Shield, Bot, ArrowRight, Trash2, Copy } from "lucide-react";
 import { analyzeMessage, rewriteMessage } from "@/lib/messageRewriter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 // Language support
 const LANGUAGES = {
@@ -15,6 +18,11 @@ const LANGUAGES = {
   fr: { name: "Français", flag: "🇫🇷" },
   es: { name: "Español", flag: "🇪🇸" },
 };
+
+
+
+
+
 
 // Translations
 const translations = {
@@ -39,14 +47,20 @@ const translations = {
     clear: "Clear History",
     copy: "Copy",
     copied: "Copied!",
-    coachTitle: "Social Skills Coach",
+    analyzing: "Analyzing...",
+    send: "Send",
+    conversationsTitle: "Conversations",
+    newConversation: "New",
+    newConvTitle: "New conversation",
+    coachTitle: "CalmlyAI",
     coachDesc: "Get real-time advice on social skills, conflict management, and communication tips.",
+    coachWelcome: "Hi! I'm here to help you communicate better. What would you like advice on?",
     startConversation: "Start Conversation",
     hideChat: "Hide Chat",
     askCoach: "Ask me anything about communication...",
     tryAsking: "Try asking about:",
-    handlingConflict: "Handling conflict",
-    effectiveApologies: "Effective apologies",
+    handlingConflict: "How do I handle conflict better?",
+    effectiveApologies: "How do I give effective apologies?",
     manageGroups: "Manage Your Groups",
   },
   fr: {
@@ -70,14 +84,20 @@ const translations = {
     clear: "Effacer l'Historique",
     copy: "Copier",
     copied: "Copié!",
-    coachTitle: "Coach en Compétences Sociales",
+    analyzing: "Analyse...",
+    send: "Envoyer",
+    conversationsTitle: "Conversations",
+    newConversation: "Nouveau",
+    newConvTitle: "Nouvelle conversation",
+    coachTitle: "CalmlyAI",
     coachDesc: "Obtenez des conseils en temps réel sur les compétences sociales, la gestion des conflits et les conseils de communication.",
+    coachWelcome: "Salut ! Je suis là pour t'aider à mieux communiquer. De quoi veux-tu parler ?",
     startConversation: "Commencer une Conversation",
     hideChat: "Masquer le Chat",
     askCoach: "Posez-moi n'importe quelle question sur la communication...",
-    tryAsking: "Essayez de demander:",
-    handlingConflict: "Gestion des conflits",
-    effectiveApologies: "Excuses efficaces",
+    tryAsking: "Essayez de demander :",
+    handlingConflict: "Comment puis-je mieux gérer les conflits ?",
+    effectiveApologies: "Comment présenter des excuses efficaces ?",
     manageGroups: "Gérer Vos Groupes",
   },
   es: {
@@ -101,14 +121,20 @@ const translations = {
     clear: "Borrar Historial",
     copy: "Copiar",
     copied: "¡Copiado!",
-    coachTitle: "Entrenador de Habilidades Sociales",
+    analyzing: "Analizando...",
+    send: "Enviar",
+    conversationsTitle: "Conversaciones",
+    newConversation: "Nuevo",
+    newConvTitle: "Nueva conversación",
+    coachTitle: "CalmlyAI",
     coachDesc: "Obtenga asesoramiento en tiempo real sobre habilidades sociales, gestión de conflictos y consejos de comunicación.",
+    coachWelcome: "¡Hola! Estoy aquí para ayudarte a comunicarte mejor. ¿Sobre qué te gustaría recibir consejos?",
     startConversation: "Iniciar Conversación",
     hideChat: "Ocultar Chat",
     askCoach: "Pregúntame cualquier cosa sobre comunicación...",
-    tryAsking: "Intenta preguntar:",
-    handlingConflict: "Manejo de conflictos",
-    effectiveApologies: "Disculpas efectivas",
+    tryAsking: "Intenta preguntar sobre:",
+    handlingConflict: "¿Cómo puedo manejar mejor los conflictos?",
+    effectiveApologies: "¿Cómo puedo pedir disculpas de manera efectiva?",
     manageGroups: "Gestionar Tus Grupos",
   },
 };
@@ -122,8 +148,8 @@ export default function Features() {
     window.scrollTo(0, 0);
   }, []);
 
-  
-  
+
+
   return (
     <div className="min-h-screen py-12" id="features-top">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -169,9 +195,84 @@ export default function Features() {
 function SafeSendAndRewriteFeature({ language, t }: any) {
   const [message, setMessage] = useState("");
   const [analysis, setAnalysis] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<any[]>([]);
   const [copied, setCopied] = useState<number | null>(null);
+  const { toast } = useToast();
+
+  // Fetch history from API
+  const { data: history = [] } = useQuery<any[]>({
+    queryKey: ['/api/features/safety-checks'],
+    queryFn: async () => {
+      const res = await fetch('/api/features/safety-checks');
+      const data = await res.json();
+      console.log('[History] Fetched data:', data);
+      console.log('[History] First item:', data[0]);
+      return data;
+    },
+  });
+
+  const saveAnalysisMutation = useMutation({
+    mutationFn: async (newAnalysis: any) => {
+      const res = await apiRequest('POST', '/api/features/safety-checks', newAnalysis);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/features/safety-checks'] });
+    }
+  });
+
+  const deleteAnalysisMutation = useMutation({
+    mutationFn: async (id: string) => {
+      console.log('[Delete] Attempting to delete analysis with ID:', id);
+      const res = await apiRequest('DELETE', `/api/features/safety-checks/${id}`);
+      console.log('[Delete] Response status:', res.status);
+      if (!res.ok && res.status !== 204) {
+        throw new Error(`Delete failed with status ${res.status}`);
+      }
+    },
+    onSuccess: () => {
+      console.log('[Delete] Success - invalidating queries');
+      queryClient.invalidateQueries({ queryKey: ['/api/features/safety-checks'] });
+      toast({
+        title: "Deleted",
+        description: "Message removed from history",
+      });
+    },
+    onError: (error) => {
+      console.error('[Delete] Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete message",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const clearHistoryMutation = useMutation({
+    mutationFn: async () => {
+      console.log('[Clear] Attempting to clear all history');
+      const res = await apiRequest('DELETE', '/api/features/safety-checks');
+      console.log('[Clear] Response status:', res.status);
+      if (!res.ok && res.status !== 204) {
+        throw new Error(`Clear failed with status ${res.status}`);
+      }
+    },
+    onSuccess: () => {
+      console.log('[Clear] Success - invalidating queries');
+      queryClient.invalidateQueries({ queryKey: ['/api/features/safety-checks'] });
+      toast({
+        title: "History cleared",
+        description: "All messages have been removed",
+      });
+    },
+    onError: (error) => {
+      console.error('[Clear] Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to clear history",
+        variant: "destructive",
+      });
+    }
+  });
 
   const getRiskLevel = (conflictRisk: number) => {
     if (conflictRisk >= 0.7) return { level: "high", color: "bg-destructive", label: t.riskHigh, percentage: 90 };
@@ -181,20 +282,33 @@ function SafeSendAndRewriteFeature({ language, t }: any) {
 
   const handleAnalyzeAndRewrite = async () => {
     if (!message.trim()) return;
-    setLoading(true);
+
+    // Optimistic / Local loading state
+    // Note: We can also use saveAnalysisMutation.isPending, but we have two async steps (analyze AI + save DB)
+
     try {
+      // 1. Analyze with AI
       const result = await analyzeMessage(message, language);
       const rewritten = await rewriteMessage(message, language);
-      const fullAnalysis = { ...result, rewritten, timestamp: new Date() };
+      const fullAnalysis = { ...result, rewritten, timestamp: new Date() }; // Date for local display
+
       setAnalysis(fullAnalysis);
-      setHistory([fullAnalysis, ...history]);
       setMessage("");
+
+      // 2. Save to DB
+      saveAnalysisMutation.mutate(fullAnalysis);
+
     } catch (error) {
       console.error(error);
-    } finally {
-      setLoading(false);
+      toast({
+        title: "Error",
+        description: "Failed to analyze message. Please try again.",
+        variant: "destructive",
+      });
     }
   };
+
+  const loading = saveAnalysisMutation.isPending;
 
   const copyToClipboard = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
@@ -248,7 +362,7 @@ function SafeSendAndRewriteFeature({ language, t }: any) {
                 className="w-full sm:w-auto"
                 disabled={loading}
               >
-                {loading ? "Analyzing..." : t.analyze}
+                {loading ? t.analyzing : t.analyze}
               </Button>
             </div>
 
@@ -320,12 +434,14 @@ function SafeSendAndRewriteFeature({ language, t }: any) {
               <CardTitle className="text-lg">{t.history}</CardTitle>
               {history.length > 0 && (
                 <Button
-                  variant="ghost"
                   size="sm"
-                  onClick={() => setHistory([])}
-                  className="text-destructive hover:bg-destructive/10"
+                  variant="ghost"
+                  onClick={() => clearHistoryMutation.mutate()}
+                  disabled={clearHistoryMutation.isPending}
+                  className="text-xs text-destructive hover:text-destructive"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  {t.clear}
                 </Button>
               )}
             </div>
@@ -338,23 +454,53 @@ function SafeSendAndRewriteFeature({ language, t }: any) {
                 {history.map((item: any, idx: number) => {
                   const riskLevel = getRiskLevel(item.conflictRisk || 0.5);
                   return (
-                    <Card key={idx} className="p-3 bg-muted/30 text-xs">
+                    <Card key={item._id || idx} className="p-3 bg-muted/30 text-xs">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Badge className={riskLevel.color} variant="outline">
                             {riskLevel.label}
                           </Badge>
-                          <button
-                            onClick={() => copyToClipboard(item.rewritten, idx)}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(item.rewritten, idx);
+                              }}
+                              className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                              title={copied === idx ? t.copied : t.copy}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                console.log('[Delete Button] Clicked! Item:', item);
+                                console.log('[Delete Button] Item _id:', item._id);
+                                if (item._id) {
+                                  console.log('[Delete Button] Calling mutation with ID:', item._id);
+                                  deleteAnalysisMutation.mutate(item._id);
+                                } else {
+                                  console.error('[Delete Button] No _id found for item:', item);
+                                  toast({
+                                    title: "Error",
+                                    description: "Cannot delete: missing ID",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              disabled={deleteAnalysisMutation.isPending}
+                              className="text-muted-foreground hover:text-destructive transition-colors p-1 cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
                         <p className="line-clamp-2 text-muted-foreground">{item.original}</p>
                         <p className="line-clamp-2 text-success font-medium">{item.rewritten}</p>
                         <p className="text-xs text-muted-foreground">
-                          {item.timestamp.toLocaleTimeString()}
+                          {new Date(item.timestamp).toLocaleTimeString()}
                         </p>
                       </div>
                     </Card>
@@ -484,8 +630,8 @@ function SocialSkillsCoachFeature({ language, t }: any) {
       const newId = makeId();
       const newConv = {
         id: newId,
-        title: "New conversation",
-        messages: [{ type: "coach", message: language === "fr" ? "Salut ! Je suis là pour t'aider. De quoi veux-tu parler ?" : language === "es" ? "¡Hola! Estoy aquí para ayudarte. ¿Sobre qué quieres hablar?" : "Hi! I'm here to help you communicate better. What would you like advice on?" }],
+        title: t.newConvTitle,
+        messages: [{ type: "coach", message: t.coachWelcome }],
         saved: false,
         createdAt: Date.now(),
       };
@@ -497,8 +643,8 @@ function SocialSkillsCoachFeature({ language, t }: any) {
       const newId = makeId();
       setConversations([{
         id: newId,
-        title: "New conversation",
-        messages: [{ type: "coach", message: language === "fr" ? "Salut ! Je suis là pour t'aider. De quoi veux-tu parler ?" : language === "es" ? "¡Hola! Estoy aquí para ayudarte. ¿Sobre qué quieres hablar?" : "Hi! I'm here to help you communicate better. What would you like advice on?" }],
+        title: t.newConvTitle,
+        messages: [{ type: "coach", message: t.coachWelcome }],
         saved: false,
         createdAt: Date.now(),
       }]);
@@ -506,6 +652,21 @@ function SocialSkillsCoachFeature({ language, t }: any) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once
+
+  // NEW: Update initial unsaved conversation when language changes
+  useEffect(() => {
+    setConversations(prev => prev.map(c => {
+      // If conversation is not saved, has only 1 message (the welcome message)
+      if (!c.saved && c.messages.length === 1 && c.messages[0].type === "coach") {
+        return {
+          ...c,
+          title: t.newConvTitle,
+          messages: [{ ...c.messages[0], message: t.coachWelcome }]
+        };
+      }
+      return c;
+    }));
+  }, [language, t.newConvTitle, t.coachWelcome]);
 
   // helper to get selected conversation object
   const selectedConv = conversations.find((c) => c.id === selectedId) || null;
@@ -520,21 +681,18 @@ function SocialSkillsCoachFeature({ language, t }: any) {
     return prompts[lang] || prompts.en;
   };
 
-  // call the same Llama endpoint for coach response (unchanged)
-  const callGroqForCoach = async (prompt: string) => {
+  // Call backend API for coach response
+  const callCoachAPI = async (messages: any[]) => {
     try {
-      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch("/api/ai/coach", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
+        // Map frontend message format to backend expected format if needed, 
+        // but backend ai.ts logic I wrote expects {role, content}.
+        // Frontend has {type, message}.
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.7,
-          max_tokens: 300,
+          messages: messages.map(m => ({ role: m.type, content: m.message })),
+          language
         }),
       });
 
@@ -547,10 +705,10 @@ function SocialSkillsCoachFeature({ language, t }: any) {
     } catch (error) {
       console.error("Coach API error:", error);
       return language === "fr"
-        ? "J'apprécie votre question ! Peux-tu donner plus de détails pour que je t'aide mieux ?"
+        ? "Désolé, je rencontre des difficultés techniques pour me connecter à mon cerveau. Veuillez réessayer dans un instant."
         : language === "es"
-        ? "¡Gracias por tu pregunta! ¿Puedes darme un poco más de contexto para ayudar mejor?"
-        : "I appreciate your question! Could you tell me more about the specific situation?";
+          ? "Lo siento, tengo problemas técnicos para conectar con mi cerebro. Por favor, inténtelo de nuevo en un momento."
+          : "Sorry, I'm having technical trouble connecting to my brain right now. Please try again in a moment.";
     }
   };
 
@@ -569,7 +727,8 @@ function SocialSkillsCoachFeature({ language, t }: any) {
     }
 
     const userMsg = { type: "user", message: question, timestamp: Date.now() };
-    const updatedConv: any = { ...conv, messages: [...conv.messages, userMsg] };
+    const updatedMessages = [...conv.messages, userMsg];
+    let updatedConv: any = { ...conv, messages: updatedMessages };
 
     // If this was the first user message (messages length before adding user was 1 => only coach welcome),
     // then generate a title locally and mark saved.
@@ -585,34 +744,29 @@ function SocialSkillsCoachFeature({ language, t }: any) {
     // update conversations state (optimistic)
     setConversations((prev) => prev.map((c) => (c.id === updatedConv.id ? updatedConv : c)));
 
-    // If we just marked as saved, persist
-    if (isFirstUserMessage) {
-      // persist saved convs
+    // Persist immediately if saved (Fix for persistence issue)
+    if (updatedConv.saved) {
       setTimeout(() => {
         persistConversations(
-          conversations
-            .map((c) => (c.id === updatedConv.id ? updatedConv : c))
-            .filter((c) => c.saved)
+          conversations.map((c) => (c.id === updatedConv.id ? updatedConv : c))
         );
       }, 0);
     }
 
-    // Call coach API for the reply
-    const prompt = getCoachPrompt(question, language);
-    const reply = await callGroqForCoach(prompt);
+    // Call coach API for the reply with FULL HISTORY (Fix for context issue)
+    const reply = await callCoachAPI(updatedMessages);
     const replyMsg = { type: "coach", message: reply, timestamp: Date.now() };
 
-    const updatedConv2 = { ...updatedConv, messages: [...updatedConv.messages, replyMsg] };
+    const finalMessages = [...updatedMessages, replyMsg];
+    const finalConv = { ...updatedConv, messages: finalMessages };
 
-    setConversations((prev) => prev.map((c) => (c.id === updatedConv2.id ? updatedConv2 : c)));
+    setConversations((prev) => prev.map((c) => (c.id === finalConv.id ? finalConv : c)));
 
     // Persist after reply if saved
-    if (isFirstUserMessage) {
+    if (finalConv.saved) {
       setTimeout(() => {
         persistConversations(
-          conversations
-            .map((c) => (c.id === updatedConv2.id ? updatedConv2 : c))
-            .filter((c) => c.saved)
+          conversations.map((c) => (c.id === finalConv.id ? finalConv : c))
         );
       }, 0);
     }
@@ -636,8 +790,8 @@ function SocialSkillsCoachFeature({ language, t }: any) {
     const newId = makeId();
     const conv = {
       id: newId,
-      title: "New conversation",
-      messages: [{ type: "coach", message: language === "fr" ? "Salut ! Je suis là pour t'aider. De quoi veux-tu parler ?" : language === "es" ? "¡Hola! Estoy aquí para ayudarte. ¿Sobre qué quieres hablar?" : "Hi! I'm here to help you communicate better. What would you like advice on?" }],
+      title: t.newConvTitle,
+      messages: [{ type: "coach", message: t.coachWelcome }],
       saved: false,
       createdAt: Date.now(),
     };
@@ -719,9 +873,9 @@ function SocialSkillsCoachFeature({ language, t }: any) {
           {/* Conversations & Sidebar */}
           <div className="md:col-span-1 space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="font-semibold">{language === "fr" ? "Conversations" : language === "es" ? "Conversaciones" : "Conversations"}</h4>
+              <h4 className="font-semibold">{t.conversationsTitle}</h4>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={newConversation}>New</Button>
+                <Button size="sm" variant="outline" onClick={newConversation}>{t.newConversation}</Button>
               </div>
             </div>
 
@@ -822,7 +976,7 @@ function SocialSkillsCoachFeature({ language, t }: any) {
                 disabled={loading}
               />
               <Button onClick={handleAsk} disabled={loading}>
-                {loading ? "..." : "Send"}
+                {loading ? "..." : t.send}
               </Button>
             </div>
 
@@ -832,14 +986,14 @@ function SocialSkillsCoachFeature({ language, t }: any) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setQuestion(`How do I handle ${t.handlingConflict.toLowerCase()} better?`)}
+                  onClick={() => setQuestion(t.handlingConflict)}
                 >
                   {t.handlingConflict}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setQuestion(`How do I give ${t.effectiveApologies.toLowerCase()}?`)}
+                  onClick={() => setQuestion(t.effectiveApologies)}
                 >
                   {t.effectiveApologies}
                 </Button>

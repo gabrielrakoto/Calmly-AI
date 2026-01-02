@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Shield, ArrowRight } from "lucide-react";
+import { MessageSquare, Shield, ArrowRight, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function HeroSection() {
@@ -18,6 +18,14 @@ export default function HeroSection() {
 
   return (
     <div className="min-h-screen">
+      {/* Beta Banner */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2 px-4 text-center">
+        <div className="container mx-auto flex items-center justify-center gap-2 text-sm">
+          <AlertCircle className="w-4 h-4" />
+          <span className="font-medium">🚀 Beta Version - Your feedback helps us improve!</span>
+        </div>
+      </div>
+
       <section className="relative overflow-hidden py-20 sm:py-32 lg:py-40">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-success/5"></div>
 
@@ -54,22 +62,13 @@ export default function HeroSection() {
 
               {/* Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Button 
-                  size="lg" 
-                  className="w-full sm:w-auto group" 
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto group"
                   onClick={() => handleNavigate("/features")}
                 >
                   Get early access
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
-
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="w-full sm:w-auto" 
-                  onClick={() => handleNavigate("/features")}
-                >
-                  Learn more
                 </Button>
               </div>
 

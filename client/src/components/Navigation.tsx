@@ -36,6 +36,7 @@ export function Navigation() {
     { href: "/features#features-top", label: "Features" },
     { href: "/groups", label: "Task Groups" },
     { href: "/contact", label: "Contact" },
+    { href: "/beta", label: "Beta" },
   ];
 
   return (
@@ -49,7 +50,7 @@ export function Navigation() {
             data-testid="link-home"
           >
             <img
-              src="https://i.imgur.com/gR4QFBc.png"
+              src="/logo.jpg"
               alt="CalmlyAI Logo"
               className="h-8 w-8 rounded-lg object-cover"
             />

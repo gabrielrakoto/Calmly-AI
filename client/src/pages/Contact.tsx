@@ -40,7 +40,18 @@ export default function Contact() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: ContactForm) => {
-      return await apiRequest("POST", "/api/contact", data);
+      const response = await fetch("https://formspree.io/f/xvzpvbep", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to send message via Formspree");
+      }
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -98,6 +109,14 @@ export default function Contact() {
                   <CardDescription>
                     We typically respond within 24 hours
                   </CardDescription>
+                  <div className="mt-4">
+                    <a
+                      href="mailto:gabrielrakotor40@gmail.com"
+                      className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                    >
+                      gabrielrakotor40@gmail.com
+                    </a>
+                  </div>
                 </CardHeader>
               </Card>
 
