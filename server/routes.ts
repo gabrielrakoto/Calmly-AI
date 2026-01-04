@@ -216,6 +216,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(400).json({ error: "UserId is required" });
       }
+
+      // Prevent caching so typing indicators are real-time
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+
       const groups = await storage.getGroupsForUser(userId);
       res.json(groups);
     } catch (error) {
@@ -391,9 +397,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/groups/:id/typing", async (req, res) => {
     try {
       const { userId, isTyping } = req.body;
+      const groupId = req.params.id;
+
       if (!userId) return res.status(400).json({ error: "UserId is required" });
 
-      await storage.setTypingStatus(req.params.id, userId, !!isTyping);
+      // console.log(`[Typing] Group ${groupId}: User ${userId} is ${isTyping ? 'typing' : 'stopped'}`);
+      await storage.setTypingStatus(groupId, userId, !!isTyping);
       res.status(200).send();
     } catch (error) {
       console.error("Error setting typing status:", error);

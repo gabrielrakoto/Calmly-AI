@@ -2,6 +2,7 @@ import { MessageSquare, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import logoImg from "@/assets/logo.jpg";
 
 export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -50,7 +51,7 @@ export function Navigation() {
             data-testid="link-home"
           >
             <img
-              src="/logo.jpg"
+              src={logoImg}
               alt="CalmlyAI Logo"
               className="h-8 w-8 rounded-lg object-cover"
             />
