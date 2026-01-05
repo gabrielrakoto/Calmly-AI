@@ -23,15 +23,30 @@ import {
 export default function TaskGroupApp() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
-  // Initialize user with a random ID on every page load to ensure isolation and ephemeral session
-  // This satisfies the requirement: "Quand un utilisateur rafraîchit la page, tout son historique... disparaît."
-  const [currentUser, setCurrentUser] = useState<string>(() => {
-    return 'user-' + crypto.randomUUID();
+
+  // Persistent clientUserId stored in localStorage for user isolation
+  // This ID identifies this browser/device and persists across refreshes
+  const [clientUserId] = useState<string>(() => {
+    const saved = localStorage.getItem('calmly_client_id');
+    if (saved) return saved;
+    const newId = 'client-' + crypto.randomUUID();
+    localStorage.setItem('calmly_client_id', newId);
+    return newId;
   });
+
+  // User ID within groups - stored in localStorage for persistence
+  const [currentUser, setCurrentUser] = useState<string>(() => {
+    const saved = localStorage.getItem('calmly_user_id');
+    if (saved) return saved;
+    const newId = 'user-' + crypto.randomUUID();
+    localStorage.setItem('calmly_user_id', newId);
+    return newId;
+  });
+
   const [currentUserName, setCurrentUserName] = useState<string>('You');
   const [activeView, setActiveView] = useState<'list' | 'create' | 'group'>('list');
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const [newlyCreatedGroup, setNewlyCreatedGroup] = useState<Group | null>(null); // Immediate access to new group
+  const [newlyCreatedGroup, setNewlyCreatedGroup] = useState<Group | null>(null);
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
   const [joinName, setJoinName] = useState('');
   const [joinEmail, setJoinEmail] = useState('');
@@ -40,9 +55,9 @@ export default function TaskGroupApp() {
   const searchParams = new URLSearchParams(window.location.search);
   const inviteToken = searchParams.get('invite');
 
-  // Fetch groups for the current user
+  // Fetch groups for the current user with clientUserId for isolation
   const { data: groups = [], isLoading: isLoadingGroups } = useQuery<Group[]>({
-    queryKey: [`/api/groups?userId=${currentUser}`],
+    queryKey: [`/api/groups?userId=${currentUser}&clientUserId=${clientUserId}`],
     refetchInterval: 2000, // Poll every 2 seconds for chat updates
   });
 
@@ -59,8 +74,8 @@ export default function TaskGroupApp() {
   // Mutations
   const createGroupMutation = useMutation({
     mutationFn: async (groupData: { name: string; description: string; ownerName: string; ownerEmail: string; maxMembers: number }) => {
-      // Include the current user ID in the payload so the backend knows who owns it
-      const payload = { ...groupData, ownerId: currentUser };
+      // Include the current user ID and clientUserId in the payload
+      const payload = { ...groupData, ownerId: currentUser, clientUserId };
       const res = await apiRequest('POST', '/api/groups', payload);
       if (!res.ok) {
         const error = await res.json();
@@ -75,7 +90,7 @@ export default function TaskGroupApp() {
       setActiveGroupId(newGroup.id);
 
       // Optimistically update cache to avoid flicker/empty screen
-      queryClient.setQueryData([`/api/groups?userId=${currentUser}`], (old: Group[] | undefined) => {
+      queryClient.setQueryData([`/api/groups?userId=${currentUser}&clientUserId=${clientUserId}`], (old: Group[] | undefined) => {
         return old ? [...old, newGroup] : [newGroup];
       });
 
@@ -113,7 +128,7 @@ export default function TaskGroupApp() {
 
   const joinGroupMutation = useMutation({
     mutationFn: async ({ token, userName, email }: { token: string; userName: string; email: string }) => {
-      const res = await apiRequest('POST', '/api/groups/join', { token, userName, email });
+      const res = await apiRequest('POST', '/api/groups/join', { token, userName, email, clientUserId });
       return res.json();
     },
     onSuccess: (data: any) => {
@@ -122,10 +137,10 @@ export default function TaskGroupApp() {
 
       // Update current user identity to the new member ID and persist it
       setCurrentUser(memberId);
-      sessionStorage.setItem('calmly_user_id', memberId);
+      localStorage.setItem('calmly_user_id', memberId);
 
       // Invalidate queries for the NEW user ID so we can see the group
-      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${memberId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${memberId}&clientUserId=${clientUserId}`] });
 
       setActiveGroupId(joinedGroup.id);
       setActiveView('group');
@@ -143,7 +158,7 @@ export default function TaskGroupApp() {
       await apiRequest('DELETE', `/api/groups/${groupId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}&clientUserId=${clientUserId}`] });
       setActiveGroupId(null);
       setActiveView('list');
       toast({ title: "Group deleted", description: "The group has been permanently removed." });
@@ -155,12 +170,12 @@ export default function TaskGroupApp() {
 
   const resetUserDataMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest('POST', '/api/reset', { userId: currentUser });
+      await apiRequest('POST', '/api/reset', { clientUserId });
     },
     onSuccess: () => {
-      // Force a reload or just invalidate everything and generate new ID?
-      // Requirement: "toutes les données... sont aussi réinitialisées"
-      // Simplest way to "reset" the client state effectively is to reload the page, which generates a new User ID.
+      // Clear localStorage and reload for a fresh start
+      localStorage.removeItem('calmly_client_id');
+      localStorage.removeItem('calmly_user_id');
       window.location.reload();
     },
     onError: () => {
@@ -299,6 +314,7 @@ export default function TaskGroupApp() {
             <GroupDetailView
               group={activeGroup}
               currentUser={currentUser}
+              clientUserId={clientUserId}
               newlyCreatedGroup={newlyCreatedGroup}
               setNewlyCreatedGroup={setNewlyCreatedGroup}
               onBack={() => {
@@ -553,7 +569,7 @@ function GroupCreationFlow({ onGroupCreated, onCancel, isCreating }: any) {
   );
 }
 
-function GroupDetailView({ group, currentUser, onBack, onCopyInviteLink, onDeleteGroup, copiedLinkId, newlyCreatedGroup, setNewlyCreatedGroup }: any) {
+function GroupDetailView({ group, currentUser, clientUserId, onBack, onCopyInviteLink, onDeleteGroup, copiedLinkId, newlyCreatedGroup, setNewlyCreatedGroup }: any) {
   const [activeTab, setActiveTab] = useState<'tasks' | 'chat' | 'members'>('tasks');
   const isOwner = group.owner === currentUser;
 
@@ -621,10 +637,11 @@ function GroupDetailView({ group, currentUser, onBack, onCopyInviteLink, onDelet
         ))}
       </div>
 
-      {activeTab === 'tasks' && <TasksTab group={group} currentUser={currentUser} isOwner={isOwner} />}
+      {activeTab === 'tasks' && <TasksTab group={group} currentUser={currentUser} clientUserId={clientUserId} isOwner={isOwner} />}
       {activeTab === 'chat' && <ChatTab
         group={group}
         currentUser={currentUser}
+        clientUserId={clientUserId}
         onMessageSent={(updatedGroup: Group) => {
           // If we are looking at the newly created group, update its state too so the chat shows the new message
           if (newlyCreatedGroup && newlyCreatedGroup.id === updatedGroup.id) {
@@ -632,12 +649,12 @@ function GroupDetailView({ group, currentUser, onBack, onCopyInviteLink, onDelet
           }
         }}
       />}
-      {activeTab === 'members' && <MembersTab group={group} currentUser={currentUser} isOwner={isOwner} />}
+      {activeTab === 'members' && <MembersTab group={group} currentUser={currentUser} clientUserId={clientUserId} isOwner={isOwner} />}
     </div>
   );
 }
 
-function TasksTab({ group, currentUser, isOwner }: any) {
+function TasksTab({ group, currentUser, clientUserId, isOwner }: any) {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -654,7 +671,7 @@ function TasksTab({ group, currentUser, isOwner }: any) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}&clientUserId=${clientUserId}`] });
       setShowForm(false);
       setFormData({ title: '', description: '', priority: 'medium', urgent: false, dueDate: '' });
     },
@@ -666,7 +683,7 @@ function TasksTab({ group, currentUser, isOwner }: any) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}&clientUserId=${clientUserId}`] });
       toast({ title: "Task deleted" });
     },
     onError: (err: any) => {
@@ -1122,7 +1139,7 @@ function ChatTab({ group, currentUser, onMessageSent }: any) {
   );
 }
 
-function MembersTab({ group, currentUser, isOwner }: any) {
+function MembersTab({ group, currentUser, clientUserId, isOwner }: any) {
   const { toast } = useToast();
 
   const removeMemberMutation = useMutation({
@@ -1165,7 +1182,7 @@ function MembersTab({ group, currentUser, isOwner }: any) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}&clientUserId=${clientUserId}`] });
       // Redirect to groups list after leaving
       window.location.href = '/groups';
       toast({ title: "Left group", description: "You have left the group." });
@@ -1190,7 +1207,7 @@ function MembersTab({ group, currentUser, isOwner }: any) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups?userId=${currentUser}&clientUserId=${clientUserId}`] });
       toast({ title: "Role updated", description: "The member's role has been updated." });
     },
     onError: (error: any) => {

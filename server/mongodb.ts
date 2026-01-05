@@ -68,7 +68,9 @@ const GroupSchema = new mongoose.Schema({
     maxMembers: Number,
     permissions: {
         canAddTasks: { type: String, enum: ["owner", "admin", "everyone"] }
-    }
+    },
+    // Client user isolation: each group is linked to the browser client that created it
+    clientUserId: { type: String, index: true }
 });
 
 export const GroupModel = mongoose.model('Group', GroupSchema);

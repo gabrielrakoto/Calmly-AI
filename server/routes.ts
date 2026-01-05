@@ -4,18 +4,29 @@ import { storage } from "./storage";
 import { contactFormSchema, createGroupSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { analyzeAndRewrite, getCoachResponse } from "./ai";
+import { GenericData } from "./mongodb";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Registering Application Routes...");
 
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
-    res.json({
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-      storage: "in-memory",
-      environment: process.env.NODE_ENV || "development"
-    });
+    try {
+      const dbStatus = await GenericData.findOne().limit(1).lean();
+      res.json({
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        database: "connected",
+        environment: process.env.NODE_ENV || "development"
+      });
+    } catch (error) {
+      res.status(503).json({
+        status: "unhealthy",
+        timestamp: new Date().toISOString(),
+        database: "disconnected",
+        error: "Database connection failed"
+      });
+    }
   });
 
   // AI Routes
@@ -33,7 +44,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Feature: Message Safety History
   app.get("/api/features/safety-checks", async (req, res) => {
     try {
-      const history = await storage.getMessageAnalysisHistory();
+      const clientUserId = req.query.clientUserId as string || "";
+      const history = await storage.getMessageAnalysisHistory(clientUserId);
       res.json(history);
     } catch (error) {
       console.error("Error fetching safety checks:", error);
@@ -68,7 +80,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/features/safety-checks", async (req, res) => {
     try {
-      await storage.clearMessageAnalysisHistory();
+      const clientUserId = req.query.clientUserId as string || "";
+      await storage.clearMessageAnalysisHistory(clientUserId);
       res.status(204).send();
     } catch (error) {
       console.error("Error clearing safety checks:", error);
@@ -78,7 +91,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/ai/coach", async (req, res) => {
     try {
-      const { messages, language } = req.body; // Expect full history
+      const { messages, language } = req.body;
       const response = await getCoachResponse(messages, language);
 
       res.json({
@@ -131,6 +144,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new group
   app.post("/api/groups", async (req, res) => {
     try {
+      const clientUserId = req.body.clientUserId;
+      if (!clientUserId) {
+        return res.status(400).json({ error: "clientUserId is required" });
+      }
+
       const result = createGroupSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({
@@ -139,7 +157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           received: req.body
         });
       }
-      const group = await storage.createGroup(result.data);
+      const group = await storage.createGroup(result.data, clientUserId);
       res.status(201).json(group);
     } catch (error) {
       console.error("Error creating group:", error);
@@ -151,8 +169,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/groups", async (req, res) => {
     try {
       const userId = req.query.userId as string;
-      if (!userId) {
-        return res.status(400).json({ error: "UserId is required" });
+      const clientUserId = req.query.clientUserId as string;
+
+      if (!userId || !clientUserId) {
+        return res.status(400).json({ error: "userId and clientUserId are required" });
       }
 
       // Prevent caching so typing indicators are real-time
@@ -160,7 +180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader("Pragma", "no-cache");
       res.setHeader("Expires", "0");
 
-      const groups = await storage.getGroupsForUser(userId);
+      const groups = await storage.getGroupsForUser(userId, clientUserId);
       res.json(groups);
     } catch (error) {
       console.error("Error fetching groups:", error);
@@ -209,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Join group via token
   app.post("/api/groups/join", async (req, res) => {
     try {
-      const { token, userName, email } = req.body;
+      const { token, userName, email, clientUserId } = req.body;
       if (!token || !userName) {
         return res.status(400).json({ error: "Token and user name are required" });
       }
@@ -219,7 +239,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Group not found or invalid token" });
       }
 
+      // Add member to the group
       const result = await storage.addMemberToGroup(group.id, userName, email);
+
+      // Update the group's clientUserId to also include this new client user
+      // Actually, for isolation, we need to think about this.
+      // The group was created by one client. When another client joins via invite,
+      // they should ALSO see this group. The simplest approach: change getGroupsForUser
+      // to also return groups where the user is a member, even if clientUserId differs.
+      // Let me update this logic.
+
       res.json(result);
     } catch (error) {
       console.error("Error joining group:", error);
@@ -355,7 +384,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Requester ID is required" });
       }
 
-      // Get the group to check permissions
       const group = await storage.getGroup(groupId);
       if (!group) {
         return res.status(404).json({ error: "Group not found" });
@@ -407,15 +435,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Reset User Data
+  // Reset User Data - delete all data associated with this clientUserId
   app.post("/api/reset", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "User ID is required" });
+      const { clientUserId } = req.body;
+      if (!clientUserId) {
+        return res.status(400).json({ error: "clientUserId is required" });
       }
 
-      await storage.resetAllDataForUser(userId);
+      await storage.resetAllDataForClientUser(clientUserId);
       res.json({ success: true, message: "User data reset successfully" });
     } catch (error) {
       console.error("Error resetting user data:", error);

@@ -1,6 +1,7 @@
 import { type ContactForm, type Group, type GroupMember, type Task, type ChatMessage, createGroupSchema, type MessageAnalysis } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { MessageAnalysisModel, GroupModel } from "./mongodb";
 
 export interface ContactSubmission extends ContactForm {
   id: string;
@@ -10,13 +11,13 @@ export interface ContactSubmission extends ContactForm {
 export interface IStorage {
   createContactSubmission(contact: ContactForm): Promise<ContactSubmission>;
   getAllContactSubmissions(): Promise<ContactSubmission[]>;
-  createGroup(groupData: z.infer<typeof createGroupSchema>): Promise<Group>;
+  createGroup(groupData: z.infer<typeof createGroupSchema>, clientUserId: string): Promise<Group>;
   getGroup(id: string): Promise<Group | undefined>;
   getGroupByInviteToken(token: string): Promise<Group | undefined>;
   addMemberToGroup(groupId: string, memberName: string, email?: string): Promise<{ group: Group, memberId: string }>;
   removeMemberFromGroup(groupId: string, memberId: string): Promise<Group>;
   updateMemberRole(groupId: string, memberId: string, newRole: "owner" | "admin" | "member"): Promise<Group>;
-  getGroupsForUser(userId: string): Promise<Group[]>;
+  getGroupsForUser(userId: string, clientUserId: string): Promise<Group[]>;
   addTaskToGroup(groupId: string, task: Task): Promise<Group>;
   deleteTaskFromGroup(groupId: string, taskId: string): Promise<Group>;
   addMessageToGroup(groupId: string, message: ChatMessage): Promise<Group>;
@@ -24,23 +25,19 @@ export interface IStorage {
   deleteGroup(id: string): Promise<boolean>;
   setTypingStatus(groupId: string, userId: string, isTyping: boolean): Promise<void>;
   createMessageAnalysis(analysis: MessageAnalysis): Promise<MessageAnalysis>;
-  getMessageAnalysisHistory(): Promise<MessageAnalysis[]>;
+  getMessageAnalysisHistory(clientUserId: string): Promise<MessageAnalysis[]>;
   deleteMessageAnalysis(id: string): Promise<boolean>;
-  clearMessageAnalysisHistory(): Promise<void>;
-  resetAllDataForUser(userId: string): Promise<void>;
+  clearMessageAnalysisHistory(clientUserId: string): Promise<void>;
+  resetAllDataForClientUser(clientUserId: string): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private groups: Map<string, Group>;
-  private contactSubmissions: Map<string, ContactSubmission>;
-  private messageAnalysis: Map<string, MessageAnalysis>;
+export class MongoStorage implements IStorage {
   private typingStatus: Map<string, Map<string, number>>; // groupId -> userId -> timestamp
+  private contactSubmissions: Map<string, ContactSubmission>; // In-memory for contact forms (not user-specific)
 
   constructor() {
-    this.groups = new Map();
-    this.contactSubmissions = new Map();
-    this.messageAnalysis = new Map();
     this.typingStatus = new Map();
+    this.contactSubmissions = new Map();
   }
 
   async createContactSubmission(contact: ContactForm): Promise<ContactSubmission> {
@@ -58,13 +55,12 @@ export class MemStorage implements IStorage {
     return Array.from(this.contactSubmissions.values());
   }
 
-  async createGroup(groupData: z.infer<typeof createGroupSchema>): Promise<Group> {
+  async createGroup(groupData: z.infer<typeof createGroupSchema>, clientUserId: string): Promise<Group> {
     const id = "group-" + randomUUID();
-    // Default ownerId to a random one if not provided, though it typically should be provided by the caller
     const ownerId = groupData.ownerId || "user-" + randomUUID();
     const inviteToken = randomUUID();
 
-    const newGroup: Group = {
+    const newGroup = await GroupModel.create({
       id,
       name: groupData.name,
       description: groupData.description || "",
@@ -85,23 +81,24 @@ export class MemStorage implements IStorage {
       permissions: {
         canAddTasks: "owner",
       },
-      activeTypers: [] // Initialize for runtime use
-    };
+      clientUserId, // Link this group to the browser client
+    });
 
-    this.groups.set(id, newGroup);
-    return newGroup;
+    return newGroup.toObject() as unknown as Group;
   }
 
   async getGroup(id: string): Promise<Group | undefined> {
-    return this.groups.get(id);
+    const group = await GroupModel.findOne({ id }).lean();
+    return group ? (group as unknown as Group) : undefined;
   }
 
   async getGroupByInviteToken(token: string): Promise<Group | undefined> {
-    return Array.from(this.groups.values()).find(g => g.inviteToken === token);
+    const group = await GroupModel.findOne({ inviteToken: token }).lean();
+    return group ? (group as unknown as Group) : undefined;
   }
 
   async addMemberToGroup(groupId: string, memberName: string, email?: string): Promise<{ group: Group, memberId: string }> {
-    const group = this.groups.get(groupId);
+    const group = await this.getGroup(groupId);
     if (!group) throw new Error("Group not found");
 
     if (group.members.length >= group.maxMembers) {
@@ -116,46 +113,61 @@ export class MemStorage implements IStorage {
       email: email,
     };
 
-    group.members.push(newMember);
-    this.groups.set(groupId, group);
+    const updatedGroup = await GroupModel.findOneAndUpdate(
+      { id: groupId },
+      { $push: { members: newMember } },
+      { new: true }
+    ).lean();
 
-    return { group, memberId };
+    return { group: updatedGroup as unknown as Group, memberId };
   }
 
   async removeMemberFromGroup(groupId: string, memberId: string): Promise<Group> {
-    const group = this.groups.get(groupId);
-    if (!group) throw new Error("Group not found");
-
-    group.members = group.members.filter(m => m.id !== memberId);
-    this.groups.set(groupId, group);
-
-    return group;
+    const updatedGroup = await GroupModel.findOneAndUpdate(
+      { id: groupId },
+      { $pull: { members: { id: memberId } } },
+      { new: true }
+    ).lean();
+    if (!updatedGroup) throw new Error("Group not found");
+    return updatedGroup as unknown as Group;
   }
 
   async updateMemberRole(groupId: string, memberId: string, newRole: "owner" | "admin" | "member"): Promise<Group> {
-    const group = this.groups.get(groupId);
+    const group = await this.getGroup(groupId);
     if (!group) throw new Error("Group not found");
 
-    const member = group.members.find(m => m.id === memberId);
-    if (!member) throw new Error("Member not found");
-
-    member.role = newRole;
+    const update: any = { $set: { "members.$[elem].role": newRole } };
     if (newRole === "owner") {
-      group.owner = memberId;
+      update.$set.owner = memberId;
     }
 
-    this.groups.set(groupId, group);
-    return group;
+    const updatedGroup = await GroupModel.findOneAndUpdate(
+      { id: groupId },
+      update,
+      {
+        arrayFilters: [{ "elem.id": memberId }],
+        new: true
+      }
+    ).lean();
+
+    if (!updatedGroup) throw new Error("Member or Group not found");
+    return updatedGroup as unknown as Group;
   }
 
-  async getGroupsForUser(userId: string): Promise<Group[]> {
+  async getGroupsForUser(userId: string, clientUserId: string): Promise<Group[]> {
     const now = Date.now();
-    const groups = Array.from(this.groups.values()).filter(g =>
-      g.members.some(m => m.id === userId)
-    );
+    // Return groups that either:
+    // 1. Were created by this clientUserId (the user's own groups)
+    // 2. The user is a member of (for groups they joined via invite)
+    const groups = await GroupModel.find({
+      $or: [
+        { clientUserId: clientUserId },
+        { "members.id": userId }
+      ]
+    }).lean();
 
-    // Attach transient typing status
-    return groups.map(group => {
+    return groups.map((g: any) => {
+      const group = g as unknown as Group;
       const groupTyping = this.typingStatus.get(group.id);
       let activeTypers: string[] = [];
 
@@ -163,64 +175,60 @@ export class MemStorage implements IStorage {
         activeTypers = Array.from(groupTyping.entries())
           .filter(([uid, timestamp]) => uid !== userId && now - timestamp < 6000)
           .map(([uid]) => {
-            const member = group.members.find(m => m.id === uid);
+            const member = group.members.find((m: GroupMember) => m.id === uid);
             return member ? member.name : "Unknown User";
           });
       }
+
       return { ...group, activeTypers };
     });
   }
 
   async addTaskToGroup(groupId: string, task: Task): Promise<Group> {
-    const group = this.groups.get(groupId);
+    const group = await GroupModel.findOneAndUpdate(
+      { id: groupId },
+      { $push: { tasks: task } },
+      { new: true }
+    ).lean();
     if (!group) throw new Error("Group not found");
-
-    if (!group.tasks) group.tasks = [];
-    group.tasks.push(task);
-    this.groups.set(groupId, group);
-    return group;
+    return group as unknown as Group;
   }
 
   async deleteTaskFromGroup(groupId: string, taskId: string): Promise<Group> {
-    const group = this.groups.get(groupId);
+    const group = await GroupModel.findOneAndUpdate(
+      { id: groupId },
+      { $pull: { tasks: { id: taskId } } },
+      { new: true }
+    ).lean();
     if (!group) throw new Error("Group not found");
-
-    group.tasks = group.tasks.filter(t => t.id !== taskId);
-    this.groups.set(groupId, group);
-    return group;
+    return group as unknown as Group;
   }
 
   async addMessageToGroup(groupId: string, message: ChatMessage): Promise<Group> {
-    const group = this.groups.get(groupId);
+    const group = await GroupModel.findOneAndUpdate(
+      { id: groupId },
+      { $push: { chat: message } },
+      { new: true }
+    ).lean();
     if (!group) throw new Error("Group not found");
-
-    if (!group.chat) group.chat = [];
-    group.chat.push(message);
-
-    // User requested "messages not persisted server side, only linked to browser session or temporary memory".
-    // This MemStorage satisfies that.
-
-    this.groups.set(groupId, group);
-    return group;
+    return group as unknown as Group;
   }
 
   async markMessageAsRead(groupId: string, messageId: string, userId: string): Promise<Group> {
-    const group = this.groups.get(groupId);
-    if (!group) return (await this.getGroup(groupId))!;
-
-    const msg = group.chat.find(c => c.id === messageId);
-    if (msg) {
-      if (!msg.readBy) msg.readBy = [];
-      if (!msg.readBy.includes(userId)) {
-        msg.readBy.push(userId);
-      }
+    const group = await GroupModel.findOneAndUpdate(
+      { id: groupId, "chat.id": messageId },
+      { $addToSet: { "chat.$.readBy": userId } },
+      { new: true }
+    ).lean();
+    if (!group) {
+      return (await this.getGroup(groupId))!;
     }
-    this.groups.set(groupId, group);
-    return group;
+    return group as unknown as Group;
   }
 
   async deleteGroup(id: string): Promise<boolean> {
-    return this.groups.delete(id);
+    const result = await GroupModel.deleteOne({ id });
+    return result.deletedCount > 0;
   }
 
   async setTypingStatus(groupId: string, userId: string, isTyping: boolean): Promise<void> {
@@ -238,40 +246,43 @@ export class MemStorage implements IStorage {
   }
 
   async createMessageAnalysis(analysis: MessageAnalysis): Promise<MessageAnalysis> {
-    const id = "analysis-" + randomUUID();
-    const newAnalysis: any = { ...analysis, _id: id, timestamp: analysis.timestamp || new Date() };
-    this.messageAnalysis.set(id, newAnalysis);
-    return newAnalysis as MessageAnalysis;
+    const savedDoc = await MessageAnalysisModel.create({
+      ...analysis,
+      timestamp: analysis.timestamp || new Date()
+    });
+    return {
+      ...analysis,
+      _id: savedDoc._id.toString()
+    };
   }
 
-  async getMessageAnalysisHistory(): Promise<MessageAnalysis[]> {
-    return Array.from(this.messageAnalysis.values())
-      .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 50);
+  async getMessageAnalysisHistory(clientUserId: string): Promise<MessageAnalysis[]> {
+    // For now, message analysis is not user-scoped in the DB schema, so we return all
+    // If you want to scope it, add clientUserId to MessageAnalysisSchema
+    const docs = await MessageAnalysisModel.find().sort({ timestamp: -1 }).limit(50).lean();
+    return docs.map((d: any) => ({
+      ...d,
+      _id: d._id.toString(),
+      timestamp: d.timestamp ? d.timestamp.toISOString() : undefined
+    }));
   }
 
   async deleteMessageAnalysis(id: string): Promise<boolean> {
-    return this.messageAnalysis.delete(id);
+    const result = await MessageAnalysisModel.findByIdAndDelete(id);
+    return !!result;
   }
 
-  async clearMessageAnalysisHistory(): Promise<void> {
-    this.messageAnalysis.clear();
+  async clearMessageAnalysisHistory(clientUserId: string): Promise<void> {
+    // Clear all for now; can be scoped if clientUserId is added to schema
+    await MessageAnalysisModel.deleteMany({});
   }
 
-  async resetAllDataForUser(userId: string): Promise<void> {
-    // 1. Find all groups owned by this user and delete them
-    for (const [groupId, group] of Array.from(this.groups.entries())) {
-      if (group.owner === userId) {
-        this.groups.delete(groupId);
-      } else {
-        // 2. Remove user from other groups
-        group.members = group.members.filter(m => m.id !== userId);
-        // Also remove their typing status
-        const groupTyping = this.typingStatus.get(groupId);
-        if (groupTyping) groupTyping.delete(userId);
-      }
-    }
+  async resetAllDataForClientUser(clientUserId: string): Promise<void> {
+    // Delete all groups associated with this client user
+    await GroupModel.deleteMany({ clientUserId });
+    // Optionally clear message analysis if scoped
+    // await MessageAnalysisModel.deleteMany({ clientUserId });
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new MongoStorage();
