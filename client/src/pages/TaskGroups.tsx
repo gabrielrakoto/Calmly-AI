@@ -23,10 +23,10 @@ import {
 export default function TaskGroupApp() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
-  // Initialize user from sessionStorage to allow multi-tab testing (separate simple identities per tab)
+  // Initialize user with a random ID on every page load to ensure isolation and ephemeral session
+  // This satisfies the requirement: "Quand un utilisateur rafraîchit la page, tout son historique... disparaît."
   const [currentUser, setCurrentUser] = useState<string>(() => {
-    const saved = sessionStorage.getItem('calmly_user_id');
-    return (saved || 'user-1').trim();
+    return 'user-' + crypto.randomUUID();
   });
   const [currentUserName, setCurrentUserName] = useState<string>('You');
   const [activeView, setActiveView] = useState<'list' | 'create' | 'group'>('list');
@@ -153,6 +153,21 @@ export default function TaskGroupApp() {
     }
   });
 
+  const resetUserDataMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest('POST', '/api/reset', { userId: currentUser });
+    },
+    onSuccess: () => {
+      // Force a reload or just invalidate everything and generate new ID?
+      // Requirement: "toutes les données... sont aussi réinitialisées"
+      // Simplest way to "reset" the client state effectively is to reload the page, which generates a new User ID.
+      window.location.reload();
+    },
+    onError: () => {
+      toast({ title: "Reset failed", variant: "destructive" });
+    }
+  });
+
   // Handlers
   const handleCreateGroup = (groupData: { name: string; description: string; ownerName: string; ownerEmail: string; maxMembers: number }) => {
     createGroupMutation.mutate(groupData);
@@ -265,6 +280,8 @@ export default function TaskGroupApp() {
             }}
             onCopyLink={handleCopyInviteLink}
             copiedLinkId={copiedLinkId}
+            onReset={() => resetUserDataMutation.mutate()}
+            isResetting={resetUserDataMutation.isPending}
           />
         )}
 
@@ -310,7 +327,7 @@ export default function TaskGroupApp() {
 
 // Subcomponents (Simplified for brevity but functional)
 
-function GroupListView({ groups, onCreateClick, onGroupClick, onCopyLink, copiedLinkId }: any) {
+function GroupListView({ groups, onCreateClick, onGroupClick, onCopyLink, copiedLinkId, onReset, isResetting }: any) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -324,6 +341,16 @@ function GroupListView({ groups, onCreateClick, onGroupClick, onCopyLink, copied
         >
           <Plus className="w-5 h-5" />
           Create Group
+        </button>
+      </div>
+
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={onReset}
+          disabled={isResetting}
+          className="text-xs text-red-500 hover:text-red-700 underline"
+        >
+          {isResetting ? "Resetting..." : "Reset All My Data"}
         </button>
       </div>
 

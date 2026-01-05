@@ -1,78 +1,23 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { contactFormSchema, createGroupSchema, taskSchema, chatMessageSchema } from "@shared/schema";
+import { contactFormSchema, createGroupSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { analyzeAndRewrite, getCoachResponse } from "./ai";
-import { GenericData } from "./mongodb";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Registering Application Routes...");
 
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
-    try {
-      // Check MongoDB connection
-      const dbStatus = await GenericData.findOne().limit(1).lean();
-      res.json({
-        status: "healthy",
-        timestamp: new Date().toISOString(),
-        database: "connected",
-        environment: process.env.NODE_ENV || "development"
-      });
-    } catch (error) {
-      res.status(503).json({
-        status: "unhealthy",
-        timestamp: new Date().toISOString(),
-        database: "disconnected",
-        error: "Database connection failed"
-      });
-    }
+    res.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      storage: "in-memory",
+      environment: process.env.NODE_ENV || "development"
+    });
   });
 
-  // Minimal MVP Routes for MongoDB
-  app.post("/api/save", async (req, res) => {
-    try {
-      const newData = new GenericData({ data: req.body });
-      await newData.save();
-      res.status(201).json({ success: true, message: "Data saved successfully", id: newData._id });
-    } catch (error) {
-      console.error("Save error:", error);
-      res.status(500).json({ success: false, error: "Failed to save data" });
-    }
-  });
-
-  app.get("/api/get", async (req, res) => {
-    try {
-      const allData = await GenericData.find({}).sort({ createdAt: -1 });
-      res.json(allData);
-    } catch (error) {
-      console.error("Get error:", error);
-      res.status(500).json({ success: false, error: "Failed to retrieve data" });
-    }
-  });
-
-  app.delete("/api/delete/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log(`Backend: Attempting to delete document with ID: ${id}`);
-
-      const result = await GenericData.findByIdAndDelete(id);
-
-      if (!result) {
-        console.log(`Backend: No document found with ID: ${id}`);
-        return res.status(404).json({ success: false, error: "Data not found" });
-      }
-
-      console.log(`Backend: Successfully deleted document: ${id}`);
-      res.json({ success: true, message: "Data deleted successfully" });
-    } catch (error) {
-      console.error("Delete error:", error);
-      res.status(500).json({ success: false, error: "Failed to delete data" });
-    }
-  });
-
-  // AI Routes
   // AI Routes
   app.post("/api/ai/analyze", async (req, res) => {
     try {
@@ -98,9 +43,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/features/safety-checks", async (req, res) => {
     try {
-      // Validate with schema if possible, or just pass through
-      // Need to import messageAnalysisSchema from shared/schema first?
-      // Let's trust generic validation or just pass it for now to avoid extensive import changes if unnecessary
       const analysis = req.body;
       const saved = await storage.createMessageAnalysis(analysis);
       res.status(201).json(saved);
@@ -137,9 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/coach", async (req, res) => {
     try {
       const { messages, language } = req.body; // Expect full history
-      console.log("[Coach API] Received request with message count:", messages?.length);
       const response = await getCoachResponse(messages, language);
-      console.log("[Coach API] Got response from AI.");
 
       res.json({
         choices: [
@@ -191,10 +131,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new group
   app.post("/api/groups", async (req, res) => {
     try {
-      console.log("Create group payload:", req.body);
       const result = createGroupSchema.safeParse(req.body);
       if (!result.success) {
-        console.error("Group validation failed:", result.error.errors);
         return res.status(400).json({
           error: "Validation failed",
           details: result.error.errors,
@@ -324,8 +262,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add task to group
   app.post("/api/groups/:id/tasks", async (req, res) => {
     try {
-      // We expect the body to be Omit<Task, "id">, but let's just validate what we can and fill in the rest
-      // Simple validation: check if title exists. In real app, use z.omit schema.
       const { title, description, priority, urgent, dueDate, assignedTo, status, createdBy } = req.body;
 
       if (!title || !createdBy) {
@@ -401,7 +337,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!userId) return res.status(400).json({ error: "UserId is required" });
 
-      // console.log(`[Typing] Group ${groupId}: User ${userId} is ${isTyping ? 'typing' : 'stopped'}`);
       await storage.setTypingStatus(groupId, userId, !!isTyping);
       res.status(200).send();
     } catch (error) {
@@ -414,9 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/groups/:id/members/:memberId", async (req, res) => {
     try {
       const { id: groupId, memberId } = req.params;
-      const requesterId = req.query.requesterId as string; // Get from query params
-
-      console.log("Remove member request:", { groupId, memberId, requesterId });
+      const requesterId = req.query.requesterId as string;
 
       if (!requesterId) {
         return res.status(400).json({ error: "Requester ID is required" });
@@ -428,11 +361,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Group not found" });
       }
 
-      console.log("Group owner:", group.owner, "Requester:", requesterId, "Match:", group.owner === requesterId);
-
-      // Allow if:
-      // 1. Requester is the owner (can kick anyone except themselves)
-      // 2. Requester is removing themselves (leaving the group)
       const isOwner = group.owner === requesterId;
       const isSelfRemoval = memberId === requesterId;
 
@@ -440,7 +368,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "You can only remove yourself or, if you're the owner, remove other members" });
       }
 
-      // Owner cannot remove themselves
       if (isOwner && isSelfRemoval) {
         return res.status(403).json({ error: "The owner cannot leave the group. Transfer ownership first or delete the group." });
       }
@@ -459,21 +386,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id: groupId, memberId } = req.params;
       const { requesterId, newRole } = req.body;
 
-      console.log("Update role request:", { groupId, memberId, requesterId, newRole });
-
       if (!newRole || !["owner", "admin", "member"].includes(newRole)) {
         return res.status(400).json({ error: "Valid role is required (owner, admin, or member)" });
       }
 
-      // Get the group to check permissions
       const group = await storage.getGroup(groupId);
       if (!group) {
         return res.status(404).json({ error: "Group not found" });
       }
 
-      console.log("Group owner:", group.owner, "Requester:", requesterId, "Match:", group.owner === requesterId);
-
-      // Check if requester is the owner
       if (group.owner !== requesterId) {
         return res.status(403).json({ error: "Only the group owner can change member roles" });
       }
@@ -486,7 +407,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
+  // Reset User Data
+  app.post("/api/reset", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
 
+      await storage.resetAllDataForUser(userId);
+      res.json({ success: true, message: "User data reset successfully" });
+    } catch (error) {
+      console.error("Error resetting user data:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  const httpServer = createServer(app);
   return httpServer;
 }
