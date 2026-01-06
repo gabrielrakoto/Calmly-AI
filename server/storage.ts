@@ -245,10 +245,11 @@ export class MongoStorage implements IStorage {
     }
   }
 
-  async createMessageAnalysis(analysis: MessageAnalysis): Promise<MessageAnalysis> {
+  async createMessageAnalysis(analysis: MessageAnalysis & { clientUserId?: string }): Promise<MessageAnalysis> {
     const savedDoc = await MessageAnalysisModel.create({
       ...analysis,
-      timestamp: analysis.timestamp || new Date()
+      timestamp: analysis.timestamp || new Date(),
+      clientUserId: analysis.clientUserId || ''
     });
     return {
       ...analysis,
@@ -257,9 +258,8 @@ export class MongoStorage implements IStorage {
   }
 
   async getMessageAnalysisHistory(clientUserId: string): Promise<MessageAnalysis[]> {
-    // For now, message analysis is not user-scoped in the DB schema, so we return all
-    // If you want to scope it, add clientUserId to MessageAnalysisSchema
-    const docs = await MessageAnalysisModel.find().sort({ timestamp: -1 }).limit(50).lean();
+    // Filter by clientUserId to ensure each user sees only their own analysis history
+    const docs = await MessageAnalysisModel.find({ clientUserId }).sort({ timestamp: -1 }).limit(50).lean();
     return docs.map((d: any) => ({
       ...d,
       _id: d._id.toString(),
@@ -273,15 +273,15 @@ export class MongoStorage implements IStorage {
   }
 
   async clearMessageAnalysisHistory(clientUserId: string): Promise<void> {
-    // Clear all for now; can be scoped if clientUserId is added to schema
-    await MessageAnalysisModel.deleteMany({});
+    // Clear only the history for this specific clientUserId
+    await MessageAnalysisModel.deleteMany({ clientUserId });
   }
 
   async resetAllDataForClientUser(clientUserId: string): Promise<void> {
     // Delete all groups associated with this client user
     await GroupModel.deleteMany({ clientUserId });
-    // Optionally clear message analysis if scoped
-    // await MessageAnalysisModel.deleteMany({ clientUserId });
+    // Also delete all message analysis history for this client user
+    await MessageAnalysisModel.deleteMany({ clientUserId });
   }
 }
 

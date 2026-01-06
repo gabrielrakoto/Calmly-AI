@@ -56,6 +56,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/features/safety-checks", async (req, res) => {
     try {
       const analysis = req.body;
+      // Include clientUserId from request body for user isolation
       const saved = await storage.createMessageAnalysis(analysis);
       res.status(201).json(saved);
     } catch (error) {

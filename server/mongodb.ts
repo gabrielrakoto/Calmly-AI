@@ -85,7 +85,9 @@ const MessageAnalysisSchema = new mongoose.Schema({
         suggestion: String
     }],
     conflictRisk: Number,
-    timestamp: { type: Date, default: Date.now }
+    timestamp: { type: Date, default: Date.now },
+    // Client user isolation: each analysis is linked to the browser client that created it
+    clientUserId: { type: String, index: true }
 });
 
 export const MessageAnalysisModel = mongoose.model('MessageAnalysis', MessageAnalysisSchema);

@@ -198,25 +198,35 @@ function SafeSendAndRewriteFeature({ language, t }: any) {
   const [copied, setCopied] = useState<number | null>(null);
   const { toast } = useToast();
 
-  // Fetch history from API
+  // Persistent clientUserId stored in localStorage for user isolation
+  // This ID identifies this browser/device and persists across refreshes
+  const [clientUserId] = useState<string>(() => {
+    const saved = localStorage.getItem('calmly_client_id');
+    if (saved) return saved;
+    const newId = 'client-' + crypto.randomUUID();
+    localStorage.setItem('calmly_client_id', newId);
+    return newId;
+  });
+
+  // Fetch history from API - scoped by clientUserId
   const { data: history = [] } = useQuery<any[]>({
-    queryKey: ['/api/features/safety-checks'],
+    queryKey: ['/api/features/safety-checks', clientUserId],
     queryFn: async () => {
-      const res = await fetch('/api/features/safety-checks');
+      const res = await fetch(`/api/features/safety-checks?clientUserId=${encodeURIComponent(clientUserId)}`);
       const data = await res.json();
-      console.log('[History] Fetched data:', data);
-      console.log('[History] First item:', data[0]);
+      console.log('[History] Fetched data for clientUserId:', clientUserId, data);
       return data;
     },
   });
 
   const saveAnalysisMutation = useMutation({
     mutationFn: async (newAnalysis: any) => {
-      const res = await apiRequest('POST', '/api/features/safety-checks', newAnalysis);
+      // Include clientUserId for user isolation
+      const res = await apiRequest('POST', '/api/features/safety-checks', { ...newAnalysis, clientUserId });
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/features/safety-checks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/features/safety-checks', clientUserId] });
     }
   });
 
@@ -231,7 +241,7 @@ function SafeSendAndRewriteFeature({ language, t }: any) {
     },
     onSuccess: () => {
       console.log('[Delete] Success - invalidating queries');
-      queryClient.invalidateQueries({ queryKey: ['/api/features/safety-checks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/features/safety-checks', clientUserId] });
       toast({
         title: "Deleted",
         description: "Message removed from history",
@@ -249,8 +259,8 @@ function SafeSendAndRewriteFeature({ language, t }: any) {
 
   const clearHistoryMutation = useMutation({
     mutationFn: async () => {
-      console.log('[Clear] Attempting to clear all history');
-      const res = await apiRequest('DELETE', '/api/features/safety-checks');
+      console.log('[Clear] Attempting to clear history for clientUserId:', clientUserId);
+      const res = await apiRequest('DELETE', `/api/features/safety-checks?clientUserId=${encodeURIComponent(clientUserId)}`);
       console.log('[Clear] Response status:', res.status);
       if (!res.ok && res.status !== 204) {
         throw new Error(`Clear failed with status ${res.status}`);
@@ -258,7 +268,7 @@ function SafeSendAndRewriteFeature({ language, t }: any) {
     },
     onSuccess: () => {
       console.log('[Clear] Success - invalidating queries');
-      queryClient.invalidateQueries({ queryKey: ['/api/features/safety-checks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/features/safety-checks', clientUserId] });
       toast({
         title: "History cleared",
         description: "All messages have been removed",
