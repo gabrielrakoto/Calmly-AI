@@ -18,14 +18,6 @@ export default function HeroSection() {
 
   return (
     <div className="min-h-screen">
-      {/* Beta Banner */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2 px-4 text-center">
-        <div className="container mx-auto flex items-center justify-center gap-2 text-sm">
-          <AlertCircle className="w-4 h-4" />
-          <span className="font-medium">🚀 Beta Version - Your feedback helps us improve!</span>
-        </div>
-      </div>
-
       <section className="relative overflow-hidden py-20 sm:py-32 lg:py-40">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-success/5"></div>
 
