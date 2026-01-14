@@ -86,15 +86,13 @@ export default async function runApp(
   // the catch-all route doesn't interfere with the other routes
   await setup(app, server);
 
-  // Correction définitive pour le développement local : 
-  // Forcer l'utilisation de l'adresse IPv4 locale (127.0.0.1) au lieu de 'localhost' (qui peut utiliser IPv6 '::1') ou '0.0.0.0'.
-  const host = process.env.HOST || '0.0.0.0';
-  const port = parseInt(process.env.PORT || '5000', 10);
+  const port = Number(process.env.PORT);
 
-  server.listen({
-    port,
-    host: host, // Utilise 127.0.0.1 par défaut
-  }, () => {
-    log(`serving on http://${host}:${port}`); // Affichera http://127.0.0.1:5000
+  if (!port) {
+    throw new Error("PORT is not defined");
+  }
+
+  server.listen(port, "0.0.0.0", () => {
+    log(`Server running on port ${port}`);
   });
 }
