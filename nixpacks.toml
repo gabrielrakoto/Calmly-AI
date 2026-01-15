@@ -1,5 +1,9 @@
 [env]
 NODE_VERSION = "20.19.0"
 
+[packages]
+nodejs = "20.19.0"
+
 [start]
 cmd = "node dist/index.js"
+
