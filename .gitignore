@@ -8,3 +8,4 @@ vite.config.ts.*
 .env
 config.env
 server_log.txt
+nixpacks.toml.backup

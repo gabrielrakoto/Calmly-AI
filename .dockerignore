@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.local
+config.env
+*.md
+*.log
+*.txt
+.replit
+nixpacks.toml.backup
