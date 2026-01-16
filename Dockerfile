@@ -1,5 +1,5 @@
-# Utilise l'image Node 20.19
-FROM node:20.19
+# Utilise l'image Node 20 Alpine
+FROM node:20.19.0-alpine
 
 # Définit le dossier de travail
 WORKDIR /app
