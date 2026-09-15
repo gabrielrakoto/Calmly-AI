@@ -40,17 +40,7 @@ export default function Contact() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: ContactForm) => {
-      const response = await fetch("https://formspree.io/f/xvzpvbep", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to send message via Formspree");
-      }
+      const response = await apiRequest("POST", "/api/contact", data);
       return response.json();
     },
     onSuccess: () => {

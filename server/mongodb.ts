@@ -1,19 +1,28 @@
 import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI || '';
+let databaseConnected = false;
+
+export function isDatabaseAvailable() {
+    return databaseConnected;
+}
 
 export async function connectDB() {
     try {
         if (!MONGODB_URI) {
-            console.error('MONGODB_URI is not defined in environment variables');
-            process.exit(1);
+            console.warn('MONGODB_URI is not defined. Using in-memory storage.');
+            return false;
         }
         console.log('Connecting to MongoDB...');
         await mongoose.connect(MONGODB_URI);
+        databaseConnected = true;
         console.log('Connected to MongoDB Atlas');
+        return true;
     } catch (error) {
         console.error('MongoDB connection error:', error);
-        process.exit(1);
+        console.warn('Falling back to in-memory storage.');
+        databaseConnected = false;
+        return false;
     }
 }
 

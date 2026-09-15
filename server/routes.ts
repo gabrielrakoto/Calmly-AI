@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { contactFormSchema, createGroupSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { analyzeAndRewrite, getCoachResponse } from "./ai";
-import { GenericData } from "./mongodb";
+import { GenericData, isDatabaseAvailable } from "./mongodb";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Registering Application Routes...");
@@ -12,6 +12,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.json({
+          status: "healthy",
+          timestamp: new Date().toISOString(),
+          database: "in-memory",
+          environment: process.env.NODE_ENV || "development"
+        });
+      }
+
       const dbStatus = await GenericData.findOne().limit(1).lean();
       res.json({
         status: "healthy",

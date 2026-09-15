@@ -1,7 +1,8 @@
 import Groq from "groq-sdk";
 
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY || ""
+    apiKey: GROQ_API_KEY
 });
 
 const MODEL = "llama-3.3-70b-versatile";
@@ -18,8 +19,68 @@ interface AnalysisResult {
     conflictRisk: number;
 }
 
+function createFallbackAnalysis(text: string): AnalysisResult {
+    const patterns: Array<{ regex: RegExp; suggestion: string; risk: number }> = [
+        { regex: /\b(always|never)\b/gi, suggestion: "describe this specific situation", risk: 0.2 },
+        { regex: /\b(stupid|idiot|shut up|hate)\b/gi, suggestion: "use calmer wording", risk: 0.45 },
+        { regex: /\b(fuck|shit|damn)\b/gi, suggestion: "remove profanity", risk: 0.55 },
+        { regex: /!{2,}/g, suggestion: "reduce emphasis", risk: 0.1 },
+    ];
+
+    const riskyPhrases: RiskyPhrase[] = [];
+    let conflictRisk = 0.05;
+
+    for (const pattern of patterns) {
+        const matches = text.match(pattern.regex) || [];
+        for (const match of matches) {
+            riskyPhrases.push({
+                text: match,
+                suggestion: pattern.suggestion,
+            });
+            conflictRisk += pattern.risk;
+        }
+    }
+
+    const preserveCase = (match: string, replacement: string) =>
+        match[0] === match[0].toUpperCase()
+            ? replacement[0].toUpperCase() + replacement.slice(1)
+            : replacement;
+
+    const rewritten = text
+        .replace(/\byou always\b/gi, (match) => preserveCase(match, "you often"))
+        .replace(/\byou never\b/gi, (match) => preserveCase(match, "you rarely"))
+        .replace(/\bshut up\b/gi, (match) => preserveCase(match, "can we pause for a second"))
+        .replace(/!{2,}/g, "!")
+        .trim();
+
+    return {
+        original: text,
+        rewritten: rewritten || text,
+        riskyPhrases,
+        conflictRisk: Math.min(Number(conflictRisk.toFixed(2)), 1),
+    };
+}
+
+function createFallbackCoachResponse(messages: { role: string, content: string }[], lang: string): string {
+    const lastUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content || "";
+
+    if (lang === "fr") {
+        return `Essaie de nommer le fait concret, puis ton ressenti, puis une demande simple. Par exemple: "Quand il se passe cela, je me sens tendu(e), et j'aimerais qu'on en parle calmement."`;
+    }
+
+    if (lang === "es") {
+        return `Intenta describir el hecho concreto, luego cómo te sientes y termina con una petición clara. Por ejemplo: "Cuando pasa esto, me siento tenso(a) y me gustaría hablarlo con calma."`;
+    }
+
+    return `Try naming the specific situation, then your feeling, then one clear request. For example: "When this happens, I feel tense, and I'd like us to talk about it calmly." ${lastUserMessage ? "Keep it focused on the latest message rather than the whole relationship." : ""}`.trim();
+}
+
 export async function analyzeAndRewrite(text: string, lang: string = 'auto'): Promise<AnalysisResult> {
     try {
+        if (!GROQ_API_KEY) {
+            return createFallbackAnalysis(text);
+        }
+
         console.log(`[AI Analysis] Processing text: "${text.substring(0, 50)}..."`);
         const prompt = `
         You are an expert communication coach and conflict mediator.
@@ -78,14 +139,7 @@ export async function analyzeAndRewrite(text: string, lang: string = 'auto'): Pr
 
     } catch (error) {
         console.error("[AI Analysis] CRITICAL FAILURE:", error);
-        // Fallback: If AI fails, treat it as potentially risky if it contains common swear words (heuristic)
-        // detailed heuristic can be added here, but for now return a distinct error state if needed
-        return {
-            original: text,
-            rewritten: text,
-            riskyPhrases: [],
-            conflictRisk: 0.0 // Return 0 to indicate "analysis failed" rather than "safe"
-        };
+        return createFallbackAnalysis(text);
     }
 }
 
@@ -97,6 +151,10 @@ interface ChatMessage {
 
 export async function getCoachResponse(messages: { role: string, content: string }[], lang: string = 'en'): Promise<string> {
     try {
+        if (!GROQ_API_KEY) {
+            return createFallbackCoachResponse(messages, lang);
+        }
+
         const systemPrompt = `
         You are "Calmly", a warm, empathetic, and highly emotional intelligence communication coach.
         
@@ -135,6 +193,6 @@ export async function getCoachResponse(messages: { role: string, content: string
 
     } catch (error) {
         console.error("[AI Coach] CRITICAL FAILURE:", error);
-        throw error;
+        return createFallbackCoachResponse(messages, lang);
     }
 }
