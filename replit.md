@@ -2,9 +2,9 @@
 
 ## Overview
 
-CalmlyAI is a modern web application designed to help users de-escalate relationship conflicts through AI-powered communication tools. The application provides three core features: Safe Send Check (message analysis and rewriting), Calm Rewrite (tone improvement), and Social Skills Coach (communication guidance). It also includes a Task Groups feature for managing shared responsibilities with gentle reminders.
+CalmlyAI is a modern web application designed to help users de-escalate relationship conflicts through AI-powered communication tools. The application provides core features around message analysis and rewriting (Safe Send Check / Calm Rewrite), an AI Social Skills Coach, and Task Groups for managing shared responsibilities within a relationship or household.
 
-The application is built as a full-stack JavaScript/TypeScript solution with a React frontend and Express backend, designed with a mobile-first, responsive approach following modern minimalist design principles.
+The application is a full-stack TypeScript solution: a React frontend and an Express backend, with real AI analysis powered by Groq and persistence in MongoDB (with an automatic in-memory fallback when no database is configured).
 
 ## User Preferences
 
@@ -24,7 +24,7 @@ Preferred communication style: Simple, everyday language.
 - TanStack Query (React Query) for server state and data fetching
 - React Hook Form with Zod for form validation
 - Local component state using React hooks
-- In-memory storage for demonstration features (no database persistence required for core features)
+- A per-browser `clientUserId` (stored client-side) is used to scope data (analysis history, groups) without a real auth system
 
 **UI Component System**
 - shadcn/ui component library (Radix UI primitives + custom styling)
@@ -34,71 +34,67 @@ Preferred communication style: Simple, everyday language.
 - Custom color palette: Primary (soft blue/lavender #6366F1), Secondary (light grays), Accent (calming green #10B981)
 
 **Key Design Decisions**
-- All communication tools (Safe Send Check, Calm Rewrite, Social Skills Coach) use client-side logic with pattern matching algorithms
-- No complex AI/ML integration - uses deterministic string pattern matching for message analysis
-- Mock data for group management demonstrations
-- Fully functional offline after initial load
+- Safe Send Check / Calm Rewrite and the Social Skills Coach call the backend (`/api/ai/analyze`, `/api/ai/coach`), which in turn calls Groq
+- No real authentication: identity is a locally-generated `clientUserId`, which is enough for a demo/MVP but not for production multi-device accounts
 
 ### Backend Architecture
 
 **Server Framework**
-- Express.js with TypeScript
-- ESM module system throughout
-- Separate development and production entry points
-- Development: Vite middleware integration for HMR
-- Production: Serves static built assets
+- Express.js with TypeScript, ESM module system throughout
+- Shared Express app (`server/app.ts`) with request logging middleware and a JSON error handler
+- Three entry points around that shared app:
+  - `server/index-dev.ts`: local development, Vite middleware for HMR
+  - `server/index-prod.ts`: production build, serves the static `dist/public` bundle, used for VPS/Docker-style hosting
+  - `api/index.ts`: Vercel serverless entry point — registers routes and connects to MongoDB once per cold start, then forwards each request to the Express app (no `app.listen()`, since Vercel manages the request lifecycle)
 
 **API Design**
-- RESTful endpoints for contact form submissions
-- Minimal API surface area (only `/api/contact` endpoint currently active)
-- JSON request/response format
-- Basic validation using Zod schemas
+- RESTful JSON endpoints under `/api/*`, defined in `server/routes.ts`:
+  - `POST /api/ai/analyze`, `POST /api/ai/coach` — AI message analysis / coaching (Groq, with local fallback)
+  - `GET/POST/DELETE /api/features/safety-checks` — analysis history, scoped by `clientUserId`
+  - `POST/GET /api/contact` — contact form (internal, no longer uses Formspree)
+  - `POST/GET/DELETE /api/groups`, `/api/groups/:id`, `/api/groups/invite/:token`, `/api/groups/join` — Task Groups CRUD, invites
+  - `POST/DELETE /api/groups/:id/tasks`, `/api/groups/:id/messages`, `/api/groups/:id/typing` — tasks, group chat, typing indicators
+  - `PATCH /api/groups/:id/members/:memberId/role`, `DELETE /api/groups/:id/members/:memberId` — membership management
+  - `POST /api/reset` — wipes all data tied to a `clientUserId`
+  - `GET /api/health` — reports whether MongoDB is connected or the app is running on the in-memory fallback
+- Validation via Zod schemas (`shared/schema.ts`)
 
-**Session & State**
-- In-memory storage implementation (MemStorage class)
-- No authentication or user sessions currently implemented
-- Stateless API design suitable for future scaling
-
-**Development vs Production**
-- Development: Vite dev server with hot module replacement
-- Production: Pre-built static assets served by Express
-- Environment-specific entry points (`index-dev.ts`, `index-prod.ts`)
+**AI Layer (`server/ai.ts`)**
+- Primary path: Groq (`llama-3.3-70b-versatile`) for message analysis (risk score, risky phrases, rewrite) and for the conversational coach
+- Fallback path (used when `GROQ_API_KEY` is unset, or if the Groq call throws): local regex-based analysis and rewriting, so the app stays functional without an API key
+  - Absolute language ("you always" → "you often", "you never" → "you rarely") is softened while keeping the original sentence subject and capitalization, rather than swapping in a mismatched first-person clause (this used to produce grammatically broken rewrites)
 
 ### Data Storage
 
 **Current Implementation**
-- In-memory storage using Map data structures
-- No persistent database currently configured
-- Contact form submissions stored in application memory
+- MongoDB (via Mongoose) is the primary store: `server/mongodb.ts` connects using `MONGODB_URI` and exposes models for groups and message analyses
+- **In-memory fallback**: if `MONGODB_URI` is missing or the connection fails, `connectDB()` no longer crashes the process — it logs a warning and the app switches to `Map`-based in-memory storage (`server/storage.ts`, `MongoStorage` class checks `isDatabaseAvailable()` before every read/write). This keeps demos and previews working without a configured database, at the cost of state not surviving a server restart / serverless cold start
+- Contact form submissions are always stored in memory (not user-specific, low volume, no need for persistence yet)
 
 **Configured but Unused**
-- Drizzle ORM configured for PostgreSQL (via Neon serverless)
-- Database schema defined in `shared/schema.ts`
-- Migration tooling set up but not actively used
-- Connection pooling via `@neondatabase/serverless`
-- Session storage configured with `connect-pg-simple` (not actively used)
+- Drizzle ORM + `@neondatabase/serverless` and `connect-pg-simple` are present in `package.json`/`drizzle.config.ts` from an earlier direction but are not wired into the current code path (MongoDB is the active store)
 
-**Data Models**
-- Contact form submissions with validation
-- Group and task management interfaces (client-side only)
-- Message analysis structures for risky phrase detection
-
-**Design Rationale**
-The application is intentionally designed to work without a database for MVP demonstration. Database infrastructure is provisioned for future features like user accounts, persistent task groups, and message history, but current functionality prioritizes quick interaction and client-side processing.
+**Data Models** (`shared/schema.ts`)
+- Contact form submissions
+- Groups, group members, tasks, and chat messages (with read receipts and typing indicators)
+- Message analysis results (risky phrases, conflict risk score, rewrite)
 
 ### Message Processing Logic
 
-**Pattern-Based Analysis**
-- Risky phrase detection using regex patterns
-- Predefined transformation rules for calm rewrites
-- No external AI services - fully self-contained algorithm
-- Real-time client-side processing for instant feedback
+**Primary: Groq LLM**
+- Detects language, scores conflict risk (0–1), extracts risky phrases with suggestions, and produces a calmer rewrite in the same language
+- Coach responses are short (3–4 sentences), language-adapted, conversational
 
-**Supported Patterns**
-- Absolute language ("you always", "you never")
-- Emotional escalation indicators
-- Blame-oriented phrasing
-- Imperative/demanding language
+**Fallback: Pattern-Based Analysis** (no external calls, used only if Groq is unavailable)
+- Risky phrase detection via regex (absolutes, insults/profanity, excessive punctuation)
+- Deterministic rewrite rules that preserve sentence structure and capitalization
+- Canned but language-adapted coach responses (en/fr/es)
+
+## Deployment
+
+- **Target: Vercel**. `vercel.json` builds the frontend with `vite build` (output `dist/public`) and routes all `/api/*` requests to a single serverless function (`api/index.ts`) that wraps the Express app
+- Required environment variables on Vercel: `GROQ_API_KEY`, `MONGODB_URI` (both optional at runtime thanks to the fallbacks above, but needed to avoid demo mode / data loss between invocations)
+- Legacy VPS/Docker path (`Dockerfile`, `DEPLOYMENT_HOSTINGER.md`, `server/index-prod.ts`, `npm run build && npm start`) is kept for reference but Hostinger is no longer the deployment target
 
 ## External Dependencies
 
@@ -118,16 +114,16 @@ The application is intentionally designed to work without a database for MVP dem
 
 ### Backend Dependencies
 - **Express**: Web server framework
-- **Drizzle ORM**: Type-safe SQL ORM (configured for PostgreSQL)
-- **@neondatabase/serverless**: PostgreSQL client for Neon serverless
-- **connect-pg-simple**: PostgreSQL session store
+- **Groq SDK**: LLM calls for message analysis and coaching
+- **Mongoose**: MongoDB ODM, primary data store
+- **Drizzle ORM / @neondatabase/serverless / connect-pg-simple**: configured but currently unused (see Data Storage)
 
 ### Build & Development Tools
 - **Vite**: Build tool and dev server
 - **TypeScript**: Type checking and compile-time safety
-- **ESBuild**: Production bundler for server code
+- **ESBuild**: Bundler for the legacy VPS/Docker production server build
 - **PostCSS**: CSS processing with Tailwind
-- **@replit/vite-plugin-***: Replit-specific development tooling
+- **@replit/vite-plugin-***: Replit-specific development tooling (harmless no-ops outside Replit)
 
 ### Design System Assets
 - **Inter font family**: Google Fonts integration
@@ -135,10 +131,10 @@ The application is intentionally designed to work without a database for MVP dem
 - Responsive breakpoint system
 
 ### Third-Party Services
-Currently, the application does not integrate with any external APIs or services. All functionality is self-contained and runs client-side or on the Express server.
+- **Groq**: LLM inference for message analysis/rewriting and the AI coach
+- **MongoDB Atlas**: primary database (optional at runtime via the in-memory fallback)
 
 **Future Integration Points**
-- Email service for contact form notifications
-- Analytics/monitoring (configured variables suggest potential integration)
-- PostgreSQL database (Neon) for persistent storage
-- Potential AI/ML services for enhanced message analysis
+- Real authentication/accounts (current identity model is a locally-generated `clientUserId`)
+- Email notifications for the contact form and group invites
+- Analytics/monitoring
