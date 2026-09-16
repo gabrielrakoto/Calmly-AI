@@ -8,6 +8,8 @@ vite.config.ts.*
 .env
 config.env
 server_log.txt
+preview.log
+preview.err.log
 # Nixpacks - ignore all
 .nixpacks
 .nixpacks/
