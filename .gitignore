@@ -15,3 +15,5 @@ preview.err.log
 .nixpacks/
 nixpacks.toml
 nixpacks.toml.backup
+.vercel
+.env*
