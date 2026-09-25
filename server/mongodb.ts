@@ -1,19 +1,21 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || '';
 
 export async function connectDB() {
+    const MONGODB_URI = process.env.MONGODB_URI || '';
+
     try {
         if (!MONGODB_URI) {
-            console.error('MONGODB_URI is not defined in environment variables');
-            process.exit(1);
+            console.error('MONGODB_URI is not defined in environment variables. Starting in offline mode (AI only).');
+            return;
         }
         console.log('Connecting to MongoDB...');
         await mongoose.connect(MONGODB_URI);
         console.log('Connected to MongoDB Atlas');
     } catch (error) {
-        console.error('MongoDB connection error:', error);
-        process.exit(1);
+        console.error('MongoDB connection error (Non-fatal, starting in offline mode):', error);
+        // Do not exit, allow server to run without DB for AI testing
+        // process.exit(1); 
     }
 }
 

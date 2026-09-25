@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 360px;
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0d9488, #10b981);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .header p {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 4px;
+        }
+
+        .version {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .section {
+            padding: 14px 20px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+        }
+
+        .toggle-label {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .toggle-desc {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #334155;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+
+        .toggle.active {
+            background: #10b981;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle.active::after {
+            transform: translateX(20px);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-card {
+            background: #1e293b;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #334155;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            color: #64748b;
+            margin-top: 2px;
+            text-transform: uppercase;
+        }
+
+        .input-group {
+            margin-top: 8px;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            color: #94a3b8;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: #e2e8f0;
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #10b981;
+        }
+
+        input::placeholder {
+            color: #475569;
+        }
+
+        .btn {
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: #10b981;
+            color: #fff;
+            margin-top: 10px;
+        }
+
+        .btn-primary:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: #ef4444;
+            font-size: 11px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-danger:hover {
+            text-decoration: underline;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        .status-dot.green {
+            background: #10b981;
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.red {
+            background: #ef4444;
+        }
+
+        .footer {
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: #475569;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .provider-link {
+            display: inline-block;
+            font-size: 11px;
+            color: #38bdf8;
+            text-decoration: none;
+            margin-top: 6px;
+        }
+
+        .provider-link:hover {
+            text-decoration: underline;
+        }
+
+        .shortcut-info {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 10px;
+            padding: 8px;
+            background: #1e293b;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .shortcut-info kbd {
+            background: #334155;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        .custom-url-row {
+            display: none;
+            margin-top: 8px;
+        }
+
+        .custom-url-row.visible {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>🌱 Calmly AI</h1>
+        <p>Conflict Mediator</p>
+        <span class="version">v0.3.2 — Multi-LLM</span>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Controls</div>
+        <div class="toggle-row">
+            <div>
+                <div class="toggle-label"><span class="status-dot green" id="statusDot"></span>Extension</div>
+                <div class="toggle-desc">Enable/Disable</div>
+            </div>
+            <div class="toggle active" id="toggleEnabled"></div>
+        </div>
+        <div class="toggle-row">
+            <div>
+                <div class="toggle-label">⚡ Auto-Scan</div>
+                <div class="toggle-desc">Analyze as you type</div>
+            </div>
+            <div class="toggle" id="toggleAuto"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">📊 Statistics</div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="statAnalyzed">0</div>
+                <div class="stat-label">Scans</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statRewrites">0</div>
+                <div class="stat-label">Rewrites</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statAvgRisk">0.0</div>
+                <div class="stat-label">Avg Risk</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">🤖 AI Provider</div>
+
+        <div class="input-group">
+            <label>Provider</label>
+            <select id="providerSelect">
+                <option value="groq">Groq (Free & Fast)</option>
+                <option value="openai">OpenAI (GPT)</option>
+                <option value="mistral">Mistral AI</option>
+                <option value="openrouter">OpenRouter (Multi-model)</option>
+                <option value="together">Together AI</option>
+                <option value="custom">Custom (any URL)</option>
+            </select>
+        </div>
+
+        <div class="custom-url-row" id="customUrlRow">
+            <div class="input-group">
+                <label>API URL</label>
+                <input type="text" id="customUrlInput" placeholder="https://your-api.com/v1/chat/completions" />
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Model</label>
+            <select id="modelSelect"></select>
+        </div>
+
+        <div class="input-group">
+            <label>API Key</label>
+            <input type="password" id="apiKeyInput" placeholder="Enter your API key..." />
+            <a class="provider-link" id="signupLink" href="#" target="_blank">🔗 Get a free API key</a>
+        </div>
+
+        <button class="btn btn-primary" id="saveBtn">💾 Save Settings</button>
+
+        <div class="shortcut-info">⌨️ <kbd>Ctrl+Shift+Y</kbd> to analyze</div>
+    </div>
+
+    <div class="footer">
+        <span>Made with 💚</span>
+        <button class="btn-danger" id="resetStatsBtn">Reset Stats</button>
+    </div>
+
+    <div class="toast" id="toast">Saved!</div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

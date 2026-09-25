@@ -1,0 +1,258 @@
+/* Calmly AI - Inject Styles v0.2.0 */
+
+.calmly-trigger-btn {
+  position: absolute;
+  z-index: 2147483647;
+  width: 28px;
+  height: 28px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  border: 2px solid #e0e0e0;
+  user-select: none;
+}
+
+.calmly-trigger-btn:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Auto-Analysis States */
+.calmly-trigger-btn.calmly-thinking {
+  border-color: #a78bfa;
+  animation: calmly-pulse 1.5s infinite;
+}
+
+.calmly-trigger-btn.calmly-safe {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2), 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.calmly-trigger-btn.calmly-caution {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2), 0 2px 8px rgba(245, 158, 11, 0.3);
+  animation: calmly-warn 2s infinite;
+}
+
+.calmly-trigger-btn.calmly-danger {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25), 0 2px 8px rgba(239, 68, 68, 0.4);
+  animation: calmly-alert 1s infinite;
+}
+
+@keyframes calmly-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes calmly-warn {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.1);
+  }
+}
+
+@keyframes calmly-alert {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+  }
+
+  50% {
+    box-shadow: 0 0 0 7px rgba(239, 68, 68, 0.1);
+  }
+}
+
+/* Suggestion Box */
+.calmly-suggestion-box {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2147483647;
+  background: #fff;
+  width: 440px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1000px rgba(0, 0, 0, 0.15);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: calmly-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes calmly-fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.calmly-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  font-weight: 600;
+  color: #1a1a2e;
+  font-size: 14px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.calmly-close {
+  cursor: pointer;
+  color: #999;
+  font-size: 20px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.calmly-close:hover {
+  background: #f3f4f6;
+  color: #333;
+}
+
+.calmly-risk-meter {
+  height: 3px;
+  background: #f0f0f0;
+  width: 100%;
+}
+
+.calmly-risk-bar {
+  height: 100%;
+  border-radius: 0 3px 3px 0;
+  transition: width 0.6s ease;
+}
+
+.calmly-content {
+  font-size: 14px;
+  color: #444;
+  line-height: 1.6;
+  padding: 20px;
+  background: #fafbfc;
+  border-left: 3px solid #3b82f6;
+  margin: 16px 20px;
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.calmly-risky-phrases {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed #e0e0e0;
+}
+
+.calmly-phrase-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-top: 4px;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  border: 1px solid #f0f0f0;
+}
+
+.calmly-phrase-bad {
+  color: #ef4444;
+  font-weight: 500;
+  text-decoration: line-through;
+}
+
+.calmly-phrase-arrow {
+  color: #999;
+  font-size: 11px;
+}
+
+.calmly-phrase-good {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.calmly-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 0 20px 16px;
+}
+
+.calmly-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.calmly-btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+.calmly-btn-primary:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: translateY(-1px);
+}
+
+.calmly-btn-ghost {
+  background: transparent;
+  color: #666;
+  border: 1px solid #e0e0e0;
+}
+
+.calmly-btn-ghost:hover {
+  background: #f3f4f6;
+}
+
+.calmly-shortcut-hint {
+  text-align: center;
+  padding: 10px 20px 14px;
+  font-size: 11px;
+  color: #aaa;
+}
+
+.calmly-shortcut-hint kbd {
+  background: #f3f4f6;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: monospace;
+  font-size: 10px;
+  color: #666;
+}

@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import mongoose from "mongoose";
 import { storage } from "./storage";
 import { contactFormSchema, createGroupSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -12,6 +13,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
     try {
+      if (mongoose.connection.readyState !== 1) {
+        return res.json({
+          status: "healthy (offline mode)",
+          timestamp: new Date().toISOString(),
+          database: "disconnected",
+          environment: process.env.NODE_ENV || "development"
+        });
+      }
       const dbStatus = await GenericData.findOne().limit(1).lean();
       res.json({
         status: "healthy",

@@ -9,6 +9,7 @@ import express, {
 
 import { registerRoutes } from "./routes";
 import { connectDB } from "./mongodb";
+import cors from "cors";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -28,6 +29,13 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+app.use(cors({
+  origin: "*", // Explicitly allow all origins
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+  // credentials: true // Disable credentials when using wildcard origin
+}));
+
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;

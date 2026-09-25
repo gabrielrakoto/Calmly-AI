@@ -4,6 +4,7 @@ import { type Server } from "node:http";
 import { fileURLToPath } from "node:url";
 
 
+import "dotenv/config";
 import express, { type Express } from "express";
 import runApp from "./app";
 

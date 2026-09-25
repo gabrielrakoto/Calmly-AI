@@ -21,6 +21,19 @@ interface AnalysisResult {
 export async function analyzeAndRewrite(text: string, lang: string = 'auto'): Promise<AnalysisResult> {
     try {
         console.log(`[AI Analysis] Processing text: "${text.substring(0, 50)}..."`);
+
+        // FAST PATH: Check for obviously safe/short greetings to save API calls and avoid noise
+        const safeGreetings = /^(hello|hi|hey|good morning|good afternoon|good evening|bonjour|salut|hola)\s*([a-z0-9\s]*)$/i;
+        if (text.length < 50 && safeGreetings.test(text.trim())) {
+            console.log("[AI Analysis] Fast path: Safe greeting detected.");
+            return {
+                original: text,
+                rewritten: text,
+                riskyPhrases: [],
+                conflictRisk: 0.0
+            };
+        }
+
         const prompt = `
         You are an expert communication coach and conflict mediator.
         
@@ -31,8 +44,8 @@ export async function analyzeAndRewrite(text: string, lang: string = 'auto'): Pr
         INSTRUCTIONS:
         1. **Detect Language**: Identify the language (English, French, Spanish, etc.).
         2. **Analyze Risk**: 
-           - 0.0 - 0.3: Polite, neutral, or positive.
-           - 0.4 - 0.6: Passive-aggressive, tense, or slightly rude.
+           - 0.0 - 0.2: Polite, neutral, positive, or standard greetings (e.g., "Hello", "Hi there", "Have a nice day").
+           - 0.3 - 0.6: Passive-aggressive, tense, assertive but rude, or ambiguous.
            - 0.7 - 0.9: Aggressive, blaming, or angry.
            - 1.0: VULGAR, PROFANE, THREATENING, or EXTREMELY TOXIC. (Mark insults and swear words as HIGH risk).
         3. **Rewrite**: Provide a calm, non-violent, and polite version of the text in the SAME language.
@@ -52,7 +65,7 @@ export async function analyzeAndRewrite(text: string, lang: string = 'auto'): Pr
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful API that outputs strict JSON. You are sensitive to toxicity and will flag vulgarity with high risk scores."
+                    content: "You are a helpful API that outputs strict JSON. You are sensitive to toxicity, but you MUST score neutral, polite, or friendly messages as very low risk (0.0 - 0.1)."
                 },
                 { role: "user", content: prompt }
             ],
@@ -68,12 +81,13 @@ export async function analyzeAndRewrite(text: string, lang: string = 'auto'): Pr
 
         const result = JSON.parse(content);
         console.log("[AI Analysis] Success:", result.conflictRisk);
+        console.log("[AI Analysis] Full Response:", JSON.stringify(result));
 
         return {
             original: text,
             rewritten: result.rewritten || text,
             riskyPhrases: result.riskyPhrases || [],
-            conflictRisk: result.conflictRisk ?? 0.5 // Default to 0.5 if missing, to be safe
+            conflictRisk: result.conflictRisk ?? 0.0 // Default to 0.0 (Safe) to avoid false positives
         };
 
     } catch (error) {
