@@ -60,7 +60,7 @@ Preferred communication style: Simple, everyday language.
 - Validation via Zod schemas (`shared/schema.ts`)
 
 **AI Layer (`server/ai.ts`)**
-- Primary path: Groq (`llama-3.3-70b-versatile`) for message analysis (risk score, risky phrases, rewrite) and for the conversational coach
+- Primary path: Groq (`openai/gpt-oss-120b`) for message analysis (risk score, risky phrases, rewrite) and for the conversational coach
 - Fallback path (used when `GROQ_API_KEY` is unset, or if the Groq call throws): local regex-based analysis and rewriting, so the app stays functional without an API key
   - Absolute language ("you always" → "you often", "you never" → "you rarely") is softened while keeping the original sentence subject and capitalization, rather than swapping in a mismatched first-person clause (this used to produce grammatically broken rewrites)
 
