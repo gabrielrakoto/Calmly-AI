@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { app } from "../server/app";
-import { registerRoutes } from "../server/routes";
-import { connectDB } from "../server/mongodb";
+import { app } from "../server/app.js";
+import { registerRoutes } from "../server/routes.js";
+import { connectDB } from "../server/mongodb.js";
 
 // Vercel reuses this module across warm invocations of the same lambda,
 // so routes are registered and the DB connection is attempted only once.

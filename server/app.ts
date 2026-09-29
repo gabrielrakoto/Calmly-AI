@@ -7,8 +7,8 @@ import express, {
   NextFunction,
 } from "express";
 
-import { registerRoutes } from "./routes";
-import { connectDB } from "./mongodb";
+import { registerRoutes } from "./routes.js";
+import { connectDB } from "./mongodb.js";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

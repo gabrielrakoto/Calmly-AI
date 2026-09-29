@@ -1,7 +1,7 @@
-import { type ContactForm, type Group, type GroupMember, type Task, type ChatMessage, createGroupSchema, type MessageAnalysis } from "@shared/schema";
+import { type ContactForm, type Group, type GroupMember, type Task, type ChatMessage, createGroupSchema, type MessageAnalysis } from "../shared/schema.js";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { MessageAnalysisModel, GroupModel, isDatabaseAvailable } from "./mongodb";
+import { MessageAnalysisModel, GroupModel, isDatabaseAvailable } from "./mongodb.js";
 
 export interface ContactSubmission extends ContactForm {
   id: string;

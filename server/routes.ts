@@ -1,10 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { contactFormSchema, createGroupSchema } from "@shared/schema";
+import { storage } from "./storage.js";
+import { contactFormSchema, createGroupSchema } from "../shared/schema.js";
 import { randomUUID } from "crypto";
-import { analyzeAndRewrite, getCoachResponse } from "./ai";
-import { GenericData, isDatabaseAvailable } from "./mongodb";
+import { analyzeAndRewrite, getCoachResponse } from "./ai.js";
+import { GenericData, isDatabaseAvailable } from "./mongodb.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Registering Application Routes...");
