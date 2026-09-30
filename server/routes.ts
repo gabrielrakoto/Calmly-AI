@@ -140,17 +140,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all contact submissions (for admin purposes)
-  app.get("/api/contact", async (req, res) => {
-    try {
-      const submissions = await storage.getAllContactSubmissions();
-      res.json(submissions);
-    } catch (error) {
-      console.error("Error fetching contact submissions:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-
   // Create a new group
   app.post("/api/groups", async (req, res) => {
     try {
